@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import os
+from aiohttp import web # New Import
 from aiogram import Bot, Dispatcher
 from config.settings import BOT_TOKENS
 from database.db import init_db, get_db
@@ -9,6 +11,22 @@ from handlers import admin, user
 from middlewares.auth import AdminCheckMiddleware
 
 logging.basicConfig(level=logging.INFO)
+
+# --- FAKE SERVER LOGIC START ---
+async def health_check(request):
+    return web.Response(text="Bot is Alive!")
+
+async def start_web_server():
+    # Koyeb Port 8000 par check karta hai
+    port = int(os.environ.get("PORT", 8000))
+    app = web.Application()
+    app.add_routes([web.get('/', health_check)])
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"🌍 Fake Web Server started on port {port}")
+# --- FAKE SERVER LOGIC END ---
 
 async def main():
     init_db() # Database start
@@ -22,20 +40,22 @@ async def main():
         data["db"] = next(session_gen)
         return await handler(event, data)
 
-    # Admin Middleware register
+    # Middlewares & Routers
     admin.router.message.middleware(AdminCheckMiddleware())
-
-    # Routers register
     dp.include_router(user.router)
     dp.include_router(admin.router)
 
-    # Multi-bot start
     if not BOT_TOKENS or BOT_TOKENS[0] == "":
-        print("❌ Error: BOT_TOKENS not found in .env")
+        print("❌ Error: BOT_TOKENS not found")
         return
 
     bots = [Bot(token=token) for token in BOT_TOKENS]
     print(f"🚀 Starting {len(bots)} bots...")
+
+    # 1. Pehle Fake Server start karein
+    await start_web_server()
+
+    # 2. Phir Bots ko start karein
     await dp.start_polling(*bots)
 
 if __name__ == "__main__":
