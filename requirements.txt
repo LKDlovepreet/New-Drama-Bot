@@ -1,1 +1,6 @@
 #libraries
+
+aiogram>=3.0.0
+sqlalchemy
+python-dotenv
+psycopg2-binary
