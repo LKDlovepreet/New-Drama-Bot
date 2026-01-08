@@ -1,1 +1,7 @@
 #Git settings 
+
+__pycache__/
+*.pyc
+.env
+storage.db
+venv/
