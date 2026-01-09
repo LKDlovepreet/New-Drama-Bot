@@ -15,7 +15,7 @@ ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 MESSAGES = {
     "welcome": "👋 Welcome! Mai ek File Sharing Bot hu.",
     "not_authorized": "🚫 <b>Access Denied.</b> Sirf Admin files upload kar sakte hain.",
-    "upload_success": "✅ <b>File Saved!</b>\n\n🔗 Link:\n{link}",
+    "upload_success": "✅ <b>File Saved!</b>\n\n🔗 Link:\n<code>{link}</code>",
     "invalid_link": "❌ Ye link galat hai ya file delete ho gayi hai.",
     "sending_file": "📂 File bhej raha hu...",
     "start_admin": "👋 Hello Admin! File bhejein link generate karne ke liye."
