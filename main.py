@@ -3,8 +3,10 @@
 import asyncio
 import logging
 import os
-from aiohttp import web # New Import
+from aiohttp import web
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties # <--- New Import
+from aiogram.enums import ParseMode # <--- New Import
 from config.settings import BOT_TOKENS
 from database.db import init_db, get_db
 from handlers import admin, user
@@ -12,12 +14,11 @@ from middlewares.auth import AdminCheckMiddleware
 
 logging.basicConfig(level=logging.INFO)
 
-# --- FAKE SERVER LOGIC START ---
+# --- FAKE SERVER LOGIC (Same as before) ---
 async def health_check(request):
     return web.Response(text="Bot is Alive!")
 
 async def start_web_server():
-    # Koyeb Port 8000 par check karta hai
     port = int(os.environ.get("PORT", 8000))
     app = web.Application()
     app.add_routes([web.get('/', health_check)])
@@ -26,21 +27,18 @@ async def start_web_server():
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     print(f"🌍 Fake Web Server started on port {port}")
-# --- FAKE SERVER LOGIC END ---
+# ------------------------------------------
 
 async def main():
-    init_db() # Database start
-    
+    init_db()
     dp = Dispatcher()
     
-    # Database Middleware
     @dp.update.outer_middleware
     async def db_session_middleware(handler, event, data):
         session_gen = get_db()
         data["db"] = next(session_gen)
         return await handler(event, data)
 
-    # Middlewares & Routers
     admin.router.message.middleware(AdminCheckMiddleware())
     dp.include_router(user.router)
     dp.include_router(admin.router)
@@ -49,13 +47,17 @@ async def main():
         print("❌ Error: BOT_TOKENS not found")
         return
 
-    bots = [Bot(token=token) for token in BOT_TOKENS]
+    # 👇 Yaha humne HTML Mode ON kiya hai
+    bots = [
+        Bot(
+            token=token, 
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        ) for token in BOT_TOKENS
+    ]
+    
     print(f"🚀 Starting {len(bots)} bots...")
 
-    # 1. Pehle Fake Server start karein
     await start_web_server()
-
-    # 2. Phir Bots ko start karein
     await dp.start_polling(*bots)
 
 if __name__ == "__main__":
