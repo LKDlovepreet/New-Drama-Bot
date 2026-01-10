@@ -37,3 +37,12 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         file_record.file_id, 
         caption=file_record.file_name
     )
+
+# 👇 Logic: Check if user exists, if not, add them
+    existing_user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
+    if not existing_user:
+        new_user = BotUser(user_id=user_id)
+        db.add(new_user)
+        db.commit()
+        # Optional: Console me print karein
+        print(f"➕ New User Joined: {user_id}")
