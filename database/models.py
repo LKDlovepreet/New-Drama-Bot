@@ -14,3 +14,10 @@ class FileRecord(Base):
     file_name = Column(String)
     file_type = Column(String)  # doc, video, photo
     uploader_id = Column(BigInteger)
+
+class Channel(Base):
+    __tablename__ = "channels"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, unique=True) # Channel ka ID
+    channel_name = Column(String)
+    added_by = Column(BigInteger)
