@@ -11,6 +11,7 @@ from config.settings import BOT_TOKENS
 from database.db import init_db, get_db
 from handlers import admin, user
 from middlewares.auth import AdminCheckMiddleware
+from handlers import admin, user, post_maker, channel_setup
 
 logging.basicConfig(level=logging.INFO)
 
