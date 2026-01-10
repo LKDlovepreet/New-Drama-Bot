@@ -31,6 +31,17 @@ async def start_web_server():
 # ------------------------------------------
 
 async def main():
+    # ... (Database aur Middleware same rahega) ...
+
+    # Routers register karte waqt naye files add karein:
+    dp.include_router(channel_setup.router) # <-- Channel Setup
+    dp.include_router(post_maker.router)    # <-- Post Maker
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
+
+    # ... (Baaki startup code same) ...
+
+async def main():
     init_db()
     dp = Dispatcher()
     
