@@ -21,3 +21,10 @@ class Channel(Base):
     chat_id = Column(BigInteger, unique=True) # Channel ka ID
     channel_name = Column(String)
     added_by = Column(BigInteger)
+
+class BotUser(Base):
+    __tablename__ = "bot_users"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, unique=True, index=True) # User ka Telegram ID
+    joined_date = Column(DateTime, default=datetime.utcnow)
