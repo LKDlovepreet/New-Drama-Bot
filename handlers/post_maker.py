@@ -8,6 +8,26 @@ from database.models import Channel, BotUser
 from utils.states import PostWizard
 from config.settings import OWNER_ID, ADMIN_IDS
 
+# handlers/post_maker.py
+
+# ... imports ...
+
+@router.message(Command("createpost"))
+async def start_post(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    
+    # 👇 DEBUGGING LINE (Ise add karein)
+    print(f"🔍 DEBUG: User ID: {user_id} | Owner: {OWNER_ID} | Admins: {ADMIN_IDS}")
+
+    if user_id not in ADMIN_IDS and user_id != OWNER_ID:
+        # 👇 Agar fail hua to ye print hoga
+        print("❌ Access Denied: User Admin list me nahi hai.")
+        return
+    
+    await message.answer("📸 <b>Step 1:</b> Jo Photo/Video post karni hai use bhejein.")
+    await state.set_state(PostWizard.waiting_for_media)
+
+
 router = Router()
 
 # 1. Start Creating Post
