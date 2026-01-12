@@ -11,17 +11,28 @@ from config.settings import OWNER_ID, ADMIN_IDS
 # 👇 Ye line missing thi, isliye error aa raha tha
 router = Router()
 
+# handlers/post_maker.py
+
+# ... (Imports same rahenge) ...
+
 # 1. Start Creating Post
 @router.message(Command("createpost"))
 async def start_post(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     
+    # 👇 DEBUG PRINT (Logs me dikhega)
+    print(f"🔍 DEBUG CHECK: User ID: {user_id}")
+    print(f"🔍 DEBUG CONFIG: Owner: {OWNER_ID} | Admins: {ADMIN_IDS}")
+
     # Security Check
     if user_id not in ADMIN_IDS and user_id != OWNER_ID:
+        # 👇 Ab Bot Chup nahi rahega, bata dega ki dikkat hai
+        await message.answer(f"❌ <b>Access Denied!</b>\nAap Admin nahi hain.\nAapki ID: <code>{user_id}</code>")
         return
     
     await message.answer("📸 <b>Step 1:</b> Jo Photo/Video post karni hai use bhejein.")
     await state.set_state(PostWizard.waiting_for_media)
+
 
 # 2. Receive Media
 @router.message(PostWizard.waiting_for_media, F.photo | F.video)
