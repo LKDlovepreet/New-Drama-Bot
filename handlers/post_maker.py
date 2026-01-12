@@ -2,38 +2,22 @@ import asyncio
 from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from sqlalchemy.orm import Session
 from database.models import Channel, BotUser
 from utils.states import PostWizard
 from config.settings import OWNER_ID, ADMIN_IDS
 
-# handlers/post_maker.py
-
-# ... imports ...
-
-@router.message(Command("createpost"))
-async def start_post(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    
-    # 👇 DEBUGGING LINE (Ise add karein)
-    print(f"🔍 DEBUG: User ID: {user_id} | Owner: {OWNER_ID} | Admins: {ADMIN_IDS}")
-
-    if user_id not in ADMIN_IDS and user_id != OWNER_ID:
-        # 👇 Agar fail hua to ye print hoga
-        print("❌ Access Denied: User Admin list me nahi hai.")
-        return
-    
-    await message.answer("📸 <b>Step 1:</b> Jo Photo/Video post karni hai use bhejein.")
-    await state.set_state(PostWizard.waiting_for_media)
-
-
+# 👇 Ye line missing thi, isliye error aa raha tha
 router = Router()
 
 # 1. Start Creating Post
 @router.message(Command("createpost"))
 async def start_post(message: types.Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID:
+    user_id = message.from_user.id
+    
+    # Security Check
+    if user_id not in ADMIN_IDS and user_id != OWNER_ID:
         return
     
     await message.answer("📸 <b>Step 1:</b> Jo Photo/Video post karni hai use bhejein.")
@@ -48,6 +32,9 @@ async def process_media(message: types.Message, state: FSMContext):
     elif message.video:
         file_id = message.video.file_id
         type_ = "video"
+    else:
+        await message.answer("❌ Sirf Photo ya Video bhejein.")
+        return
     
     await state.update_data(media_id=file_id, media_type=type_)
     await message.answer("📝 <b>Step 2:</b> Ab Post ka <b>Caption (Text)</b> likhein.\n(Agar text nahi chahiye to 'SKIP' likhein)")
@@ -56,7 +43,7 @@ async def process_media(message: types.Message, state: FSMContext):
 # 3. Receive Caption
 @router.message(PostWizard.waiting_for_caption)
 async def process_caption(message: types.Message, state: FSMContext):
-    caption = message.text if message.text.lower() != "skip" else None
+    caption = message.text if message.text and message.text.lower() != "skip" else None
     await state.update_data(caption=caption)
     
     msg = (
@@ -74,13 +61,15 @@ async def process_caption(message: types.Message, state: FSMContext):
 @router.message(PostWizard.waiting_for_buttons)
 async def process_buttons(message: types.Message, state: FSMContext):
     keyboard = None
-    if message.text.lower() != "skip":
+    if message.text and message.text.lower() != "skip":
         rows = []
         lines = message.text.split("\n")
         for line in lines:
             if "-" in line:
-                name, url = line.split("-", 1)
-                rows.append([InlineKeyboardButton(text=name.strip(), url=url.strip())])
+                parts = line.split("-", 1)
+                if len(parts) == 2:
+                    name, url = parts
+                    rows.append([InlineKeyboardButton(text=name.strip(), url=url.strip())])
         if rows:
             keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
     
@@ -93,8 +82,7 @@ async def process_buttons(message: types.Message, state: FSMContext):
     )
     await state.set_state(PostWizard.waiting_for_timer)
 
-
-# 5. Timer ke baad -> Target Selection (NEW STEP)
+# 5. Timer & Target Selection
 @router.message(PostWizard.waiting_for_timer)
 async def process_timer(message: types.Message, state: FSMContext):
     try:
@@ -104,7 +92,7 @@ async def process_timer(message: types.Message, state: FSMContext):
     
     await state.update_data(timer_hours=hours)
     
-    # Target puchne ke liye Keyboard
+    # Target Selection Keyboard
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📢 Channels Only")],
@@ -127,7 +115,7 @@ async def process_timer(message: types.Message, state: FSMContext):
 async def process_target(message: types.Message, state: FSMContext):
     target = message.text
     if target not in ["📢 Channels Only", "👥 Users Only", "🚀 Both (All)"]:
-        await message.answer("Please button use karke select karein.")
+        await message.answer("⚠️ Please niche diye gaye buttons se select karein.")
         return
 
     await state.update_data(target=target)
@@ -137,19 +125,23 @@ async def process_target(message: types.Message, state: FSMContext):
     await message.answer("👀 <b>Preview:</b> Ye post aisi dikhegi:", reply_markup=ReplyKeyboardRemove())
     
     method = message.answer_photo if data['media_type'] == 'photo' else message.answer_video
-    await method(
-        data['media_id'],
-        caption=data['caption'],
-        reply_markup=data['reply_markup']
-    )
+    try:
+        await method(
+            data['media_id'],
+            caption=data['caption'],
+            reply_markup=data['reply_markup']
+        )
+    except Exception as e:
+        await message.answer(f"❌ Error in preview: {e}")
+        return
     
     await message.answer("Kya main ise send kar du? (YES / NO)")
     await state.set_state(PostWizard.confirmation)
 
-# 7. Final Sending Logic (POWERFUL BROADCAST)
+# 7. Final Sending Logic
 @router.message(PostWizard.confirmation)
 async def confirm_send(message: types.Message, state: FSMContext, db: Session):
-    if message.text.lower() != "yes":
+    if not message.text or message.text.lower() != "yes":
         await message.answer("❌ Cancelled.")
         await state.clear()
         return
@@ -161,10 +153,10 @@ async def confirm_send(message: types.Message, state: FSMContext, db: Session):
     await message.answer("🚀 Broadcasting Started! Background me bhej raha hu...")
     await state.clear()
 
-    # Background Task start karte hain taaki bot hang na ho
+    # Background Task Run
     asyncio.create_task(run_broadcast(bot, db, data, target, message.chat.id))
 
-# --- BACKGROUND BROADCAST FUNCTION ---
+# --- BACKGROUND FUNCTIONS ---
 async def run_broadcast(bot, db, data, target, admin_chat_id):
     sent_count = 0
     fail_count = 0
@@ -183,13 +175,12 @@ async def run_broadcast(bot, db, data, target, admin_chat_id):
                     reply_markup=data['reply_markup']
                 )
                 sent_count += 1
-                # Timer Logic
                 if data['timer_hours'] > 0:
                     asyncio.create_task(delete_later(bot, ch.chat_id, msg.message_id, data['timer_hours']))
             except Exception as e:
                 print(f"Channel Error: {e}")
 
-    # 2. SEND TO USERS (BROADCAST)
+    # 2. SEND TO USERS
     if target in ["👥 Users Only", "🚀 Both (All)"]:
         users = db.query(BotUser).all()
         for user in users:
@@ -203,17 +194,16 @@ async def run_broadcast(bot, db, data, target, admin_chat_id):
                     reply_markup=data['reply_markup']
                 )
                 sent_count += 1
-                await asyncio.sleep(0.05) # Flood wait bachane ke liye (20 msg/sec)
+                await asyncio.sleep(0.05) # Flood wait prevention
             except Exception:
-                fail_count += 1 # User ne block kiya hoga
+                fail_count += 1 
     
-    # Admin ko report bhejo
     await bot.send_message(
         admin_chat_id, 
         f"✅ <b>Broadcast Complete!</b>\n\n"
         f"🎯 Target: {target}\n"
         f"✅ Sent: {sent_count}\n"
-        f"❌ Failed/Blocked: {fail_count}"
+        f"❌ Failed: {fail_count}"
     )
 
 async def delete_later(bot, chat_id, message_id, hours):
