@@ -8,11 +8,10 @@ OWNER_ID = int(os.getenv("OWNER_ID", 0))
 admin_env = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 
-# 👇 CHANGE HERE: GPLinks API Key
-# Ye key aapko https://gplinks.in/member/tools/api se milegi
-GPLINKS_API = "YOUR_GPLINKS_API_KEY_HERE" 
+# 👇 FIX: Ab ye Koyeb ke Environment Variables se Key uthayega
+GPLINKS_API = os.getenv("GPLINKS_API") 
 
-DEMO_VIDEO_URL = "https://t.me/your_channel/123"
+DEMO_VIDEO_URL = "https://t.me/your_channel/123" # Ise change kar lena apni video link se
 VERIFY_HOURS = 24
 
 MESSAGES = {
