@@ -3,13 +3,15 @@ from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-# 👇 SessionLocal zaroori hai database error bachane ke liye
 from database.db import SessionLocal
 from database.models import Channel, BotUser
 from utils.states import PostWizard
 from config.settings import OWNER_ID, ADMIN_IDS
 
 router = Router()
+
+# ... (Step 1 se Step 6 tak SAME rahega) ...
+# ... (Sirf 'createpost' se lekar 'run_broadcast' tak ka code wapis paste kar raha hu taaki confusion na ho) ...
 
 # 1. Start Creating Post
 @router.message(Command("createpost"))
@@ -18,7 +20,6 @@ async def start_post(message: types.Message, state: FSMContext):
     if user_id not in ADMIN_IDS and user_id != OWNER_ID:
         await message.answer(f"❌ <b>Access Denied!</b>\nAapki ID: <code>{user_id}</code>")
         return
-    
     await message.answer("📸 <b>Step 1:</b> Jo Photo/Video post karni hai use bhejein.")
     await state.set_state(PostWizard.waiting_for_media)
 
@@ -34,7 +35,6 @@ async def process_media(message: types.Message, state: FSMContext):
     else:
         await message.answer("❌ Sirf Photo ya Video bhejein.")
         return
-    
     await state.update_data(media_id=file_id, media_type=type_)
     await message.answer("📝 <b>Step 2:</b> Caption likhein (ya SKIP).")
     await state.set_state(PostWizard.waiting_for_caption)
@@ -69,12 +69,11 @@ async def process_buttons(message: types.Message, state: FSMContext):
                     rows.append([InlineKeyboardButton(text=parts[0].strip(), url=parts[1].strip())])
         if rows:
             keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
-    
     await state.update_data(reply_markup=keyboard)
     await message.answer("⏳ <b>Step 4:</b> Timer set karein (Hours) ya 0.")
     await state.set_state(PostWizard.waiting_for_timer)
 
-# 5. Timer & Target Selection
+# 5. Timer & Target
 @router.message(PostWizard.waiting_for_timer)
 async def process_timer(message: types.Message, state: FSMContext):
     try:
@@ -82,13 +81,8 @@ async def process_timer(message: types.Message, state: FSMContext):
     except:
         hours = 0
     await state.update_data(timer_hours=hours)
-    
     keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📢 Channels Only")],
-            [KeyboardButton(text="👥 Users Only")],
-            [KeyboardButton(text="🚀 Both (All)")]
-        ],
+        keyboard=[[KeyboardButton(text="📢 Channels Only")], [KeyboardButton(text="👥 Users Only")], [KeyboardButton(text="🚀 Both (All)")]],
         resize_keyboard=True, one_time_keyboard=True
     )
     await message.answer("🎯 <b>Target Select Karein:</b>", reply_markup=keyboard)
@@ -101,31 +95,19 @@ async def process_target(message: types.Message, state: FSMContext):
     if target not in ["📢 Channels Only", "👥 Users Only", "🚀 Both (All)"]:
         await message.answer("⚠️ Button se select karein.")
         return
-
     await state.update_data(target=target)
     data = await state.get_data()
     
-    await message.answer("👀 <b>Preview:</b> Ye post aisi dikhegi:", reply_markup=ReplyKeyboardRemove())
-    
-    # 👇 FIX 1: Preview me alag-alag handle karna
+    await message.answer("👀 <b>Preview:</b>", reply_markup=ReplyKeyboardRemove())
     try:
         if data['media_type'] == 'photo':
-            await message.answer_photo(
-                data['media_id'], 
-                caption=data['caption'], 
-                reply_markup=data['reply_markup']
-            )
+            await message.answer_photo(data['media_id'], caption=data['caption'], reply_markup=data['reply_markup'])
         else:
-            await message.answer_video(
-                data['media_id'], 
-                caption=data['caption'], 
-                reply_markup=data['reply_markup']
-            )
+            await message.answer_video(data['media_id'], caption=data['caption'], reply_markup=data['reply_markup'])
     except Exception as e:
-        await message.answer(f"❌ Error in preview: {e}")
+        await message.answer(f"Error: {e}")
         return
-    
-    await message.answer("Kya main ise send kar du? (YES / NO)")
+    await message.answer("Send kar du? (YES/NO)")
     await state.set_state(PostWizard.confirmation)
 
 # 7. Final Sending Logic
@@ -142,7 +124,6 @@ async def confirm_send(message: types.Message, state: FSMContext):
     
     await message.answer("🚀 Broadcasting Started! Background me bhej raha hu...")
     await state.clear()
-
     asyncio.create_task(run_broadcast(bot, data, target, message.chat.id))
 
 # --- BACKGROUND FUNCTIONS ---
@@ -150,16 +131,16 @@ async def run_broadcast(bot, data, target, admin_chat_id):
     sent_count = 0
     fail_count = 0
     
-    # Naya Database Session (SSL Error hatane ke liye)
     session = SessionLocal()
     
     try:
         # 1. SEND TO CHANNELS
         if target in ["📢 Channels Only", "🚀 Both (All)"]:
             channels = session.query(Channel).all()
+            print(f"📢 Found {len(channels)} Channels") # DEBUG PRINT
+            
             for ch in channels:
                 try:
-                    # 👇 FIX 2: Channel Broadcasting Split logic
                     msg = None
                     if data['media_type'] == 'photo':
                         msg = await bot.send_photo(
@@ -175,19 +156,19 @@ async def run_broadcast(bot, data, target, admin_chat_id):
                             caption=data['caption'],
                             reply_markup=data['reply_markup']
                         )
-
                     sent_count += 1
                     if data['timer_hours'] > 0 and msg:
                         asyncio.create_task(delete_later(bot, ch.chat_id, msg.message_id, data['timer_hours']))
                 except Exception as e:
-                    print(f"Channel Error: {e}")
+                    print(f"❌ Channel Error ({ch.channel_name}): {e}")
 
         # 2. SEND TO USERS
         if target in ["👥 Users Only", "🚀 Both (All)"]:
             users = session.query(BotUser).all()
+            print(f"👥 Found {len(users)} Users in DB") # DEBUG PRINT
+            
             for user in users:
                 try:
-                    # 👇 FIX 3: User Broadcasting Split logic
                     if data['media_type'] == 'photo':
                         await bot.send_photo(
                             chat_id=user.user_id,
@@ -202,11 +183,12 @@ async def run_broadcast(bot, data, target, admin_chat_id):
                             caption=data['caption'],
                             reply_markup=data['reply_markup']
                         )
-
                     sent_count += 1
-                    await asyncio.sleep(0.05) # Flood wait prevention
-                except Exception:
-                    fail_count += 1 
+                    await asyncio.sleep(0.05) 
+                except Exception as e:
+                    fail_count += 1
+                    # 👇 AB ERROR DIKHEGA LOGS MEIN
+                    print(f"❌ User Error ({user.user_id}): {e}")
     
     finally:
         session.close()
