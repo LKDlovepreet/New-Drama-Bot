@@ -16,28 +16,28 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
     user_id = message.from_user.id
     args = command.args
     
-    # 1. User ko DB me Find/Create karein
+    # 1. User Find/Create
     user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
     if not user:
-        user = BotUser(user_id=user_id)
-        db.add(user)
-        db.commit()
+        try:
+            user = BotUser(user_id=user_id)
+            db.add(user)
+            db.commit()
+            print(f"🆕 New User: {user_id}")
+        except:
+            db.rollback()
 
-    # 2. Agar koi Argument nahi hai (Sirf /start)
     if not args:
         await message.answer(MESSAGES["welcome"])
         return
 
-    # --- CASE A: USER VERIFY KARKE WAPIS AAYA HAI ---
+    # --- CASE A: USER VERIFY KARKE AAYA HAI ---
     if args.startswith("verify_"):
-        # Logic: Link hoga t.me/bot?start=verify_ORIGINALTOKEN
         original_token = args.split("verify_")[1]
         
-        # User ka time update karein
         user.verification_expiry = datetime.utcnow() + timedelta(hours=VERIFY_HOURS)
         db.commit()
         
-        # Success Message aur "Try Again" button (Jo purani file par le jayega)
         bot_username = (await message.bot.get_me()).username
         retry_link = f"https://t.me/{bot_username}?start={original_token}"
         
@@ -48,9 +48,7 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         await message.answer(MESSAGES["verified_success"], reply_markup=keyboard)
         return
 
-    # --- CASE B: USER FILE MAANG RAHA HAI ---
-    
-    # Pehle file check karein ki exist karti hai ya nahi
+    # --- CASE B: FILE REQUEST ---
     token = args
     stmt = select(FileRecord).where(FileRecord.unique_token == token)
     file_record = db.execute(stmt).scalar_one_or_none()
@@ -59,42 +57,45 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         await message.answer(MESSAGES["invalid_link"])
         return
 
-    # 3. VERIFICATION CHECK
+    # Verification Check
     is_verified = False
-    
-    # Premium user hamesha verified hai
     if user.is_premium:
         is_verified = True
-    # Normal user ka time check karein
     elif user.verification_expiry and user.verification_expiry > datetime.utcnow():
         is_verified = True
 
-    # 4. AGAR VERIFIED NAHI HAI -> AD DIKHAO
+    # 4. SHOW AD (Verification Needed)
     if not is_verified:
         bot_username = (await message.bot.get_me()).username
-        # Hum user ko bhejenge: t.me/Bot?start=verify_FILETOKEN
-        # Taaki verify hone ke baad humein pata chale use konsi file chahiye thi
         verify_deep_link = f"https://t.me/{bot_username}?start=verify_{token}"
         
-        # Is link ko AdrinoLinks se short karein
         wait_msg = await message.answer("🔄 Generating Verification Link...")
+        
+        # 👇 Short Link Generate Check
         short_url = await get_short_link(verify_deep_link)
+        
         await wait_msg.delete()
         
+        # 👇 AGAR LINK FAIL HUA TO USER KO BATAO (Crash mat karo)
         if not short_url:
-            await message.answer("❌ Error generating link. Please try again later.")
+            await message.answer("⚠️ <b>Link Generation Failed.</b>\nShayad API Key galat hai ya Shortener down hai.\nAdmin se contact karein.")
             return
 
-        # Buttons create karein
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔓 Verify Access (Click Here)", url=short_url)],
-            [InlineKeyboardButton(text="📺 How to Verify (Video)", url=DEMO_VIDEO_URL)]
-        ])
+        # Buttons Preparation
+        buttons = []
+        # Verify Button (Valid URL hona zaroori hai)
+        buttons.append([InlineKeyboardButton(text="🔓 Verify Access (Click Here)", url=short_url)])
+        
+        # Demo Video Button (Check karein ki URL valid hai)
+        if DEMO_VIDEO_URL and DEMO_VIDEO_URL.startswith("http"):
+            buttons.append([InlineKeyboardButton(text="📺 How to Verify (Video)", url=DEMO_VIDEO_URL)])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
         
         await message.answer(MESSAGES["verify_first"], reply_markup=keyboard)
         return
 
-    # 5. AGAR VERIFIED HAI -> FILE BHEJO
+    # 5. SEND FILE (Verified)
     await message.answer(MESSAGES["sending_file"])
     
     method = {
