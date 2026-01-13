@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from handlers import admin, user, post_maker, channel_setup, owner # 👈 owner add kiya
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -72,6 +73,11 @@ async def main():
     # 8. Start Everything
     await start_web_server()
     await dp.start_polling(*bots)
-
+# main function ke andar routers register karte waqt:
+    dp.include_router(channel_setup.router)
+    dp.include_router(owner.router)      # 👈 Owner router add kiya
+    dp.include_router(post_maker.router)
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
 if __name__ == "__main__":
     asyncio.run(main())
