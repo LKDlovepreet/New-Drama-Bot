@@ -11,8 +11,8 @@ ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 # 👇 FIX: Ab ye Koyeb ke Environment Variables se Key uthayega
 GPLINKS_API = os.getenv("GPLINKS_API") 
 
-DEMO_VIDEO_URL = "https://t.me/your_channel/123" # Ise change kar lena apni video link se
-VERIFY_HOURS = 24
+DEMO_VIDEO_URL = ""
+VERIFY_HOURS = 1
 
 MESSAGES = {
     "welcome": "👋 Welcome! File paane ke liye link use karein.",
