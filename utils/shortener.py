@@ -3,15 +3,15 @@ from config.settings import GPLINKS_API
 
 async def get_short_link(long_url):
     try:
-        # Check API Key
-        if "YOUR_GPLINKS_API_KEY" in GPLINKS_API:
-            print("❌ Error: GPLinks API Key set nahi hai config/settings.py mein!")
+        # 👇 FIX: Check karein ki Key Environment se load hui ya nahi
+        if not GPLINKS_API:
+            print("❌ Error: GPLinks API Key set nahi hai Environment Variables mein!")
             return None
 
-        # 👇 GPLinks API URL
+        # GPLinks API URL
         api_url = f"https://gplinks.in/api?api={GPLINKS_API}&url={long_url}&format=text"
         
-        # Chrome ban kar request bhejein (Taaki koi rok na sake)
+        # Chrome ban kar request bhejein
         async with AsyncSession(impersonate="chrome110") as session:
             response = await session.get(api_url)
             
@@ -25,7 +25,7 @@ async def get_short_link(long_url):
                 if result.startswith("http"):
                     return result
                 else:
-                    # Agar koi error message aaya (Ex: Invalid API Key)
+                    # Agar koi error message aaya
                     print(f"❌ GPLinks Error: {result}")
                     return None
             else:
