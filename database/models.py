@@ -26,6 +26,8 @@ class BotUser(Base):
     user_id = Column(BigInteger, unique=True, index=True)
     joined_date = Column(DateTime, default=datetime.utcnow)
     
-    # 👇 NEW COLUMNS
-    is_premium = Column(Boolean, default=False)  # Premium users (No Ads)
-    verification_expiry = Column(DateTime, nullable=True) # Kab tak verify hai
+    is_premium = Column(Boolean, default=False)
+    verification_expiry = Column(DateTime, nullable=True)
+    
+    # 👇 NEW: Admin Status (Database me save rahega)
+    is_admin = Column(Boolean, default=False) 
