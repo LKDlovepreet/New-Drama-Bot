@@ -10,7 +10,7 @@ ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 
 ADRINOLINKS_API = ""
 DEMO_VIDEO_URL = ""
-VERIFY_HOURS = 24
+VERIFY_HOURS = 1
 
 MESSAGES = {
     "welcome": "👋 Welcome! File paane ke liye link use karein.",
