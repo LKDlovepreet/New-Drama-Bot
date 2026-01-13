@@ -1,32 +1,32 @@
 from curl_cffi.requests import AsyncSession
-from config.settings import ADRINOLINKS_API
+from config.settings import GPLINKS_API
 
 async def get_short_link(long_url):
     try:
         # Check API Key
-        if "YOUR_ADRINOLINKS_API_KEY" in ADRINOLINKS_API:
-            print("❌ Error: AdrinoLinks API Key set nahi hai!")
+        if "YOUR_GPLINKS_API_KEY" in GPLINKS_API:
+            print("❌ Error: GPLinks API Key set nahi hai config/settings.py mein!")
             return None
 
-        # API URL
-        api_url = f"https://adrinolinks.com/api?api={ADRINOLINKS_API}&url={long_url}&format=text"
+        # 👇 GPLinks API URL
+        api_url = f"https://gplinks.in/api?api={GPLINKS_API}&url={long_url}&format=text"
         
-        # 👇 BRAHMASTRA FIX: curl_cffi use kar rahe hain
-        # impersonate="chrome110" server ko confuse kar dega
+        # Chrome ban kar request bhejein (Taaki koi rok na sake)
         async with AsyncSession(impersonate="chrome110") as session:
             response = await session.get(api_url)
             
             if response.status_code == 200:
                 result = response.text.strip()
                 
-                # Debugging ke liye logs mein print karein
-                print(f"🔗 API Response: {result[:100]}") 
+                # Debugging ke liye
+                print(f"🔗 GPLinks Response: {result[:50]}") 
 
+                # Agar link 'http' se shuru ho raha hai to sahi hai
                 if result.startswith("http"):
                     return result
                 else:
-                    # Agar abhi bhi HTML page aaye
-                    print(f"❌ Shortener Blocked (HTML received): {result[:50]}...")
+                    # Agar koi error message aaya (Ex: Invalid API Key)
+                    print(f"❌ GPLinks Error: {result}")
                     return None
             else:
                 print(f"❌ HTTP Error: {response.status_code}")
