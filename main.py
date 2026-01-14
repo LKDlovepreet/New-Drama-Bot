@@ -62,5 +62,17 @@ async def main():
     await start_web_server()
     await dp.start_polling(*bots)
 
+# Imports me add karein:
+from handlers import admin, user, post_maker, channel_setup, owner, group_manager # 👈 group_manager add kiya
+
+# main() function me routers wale hisse me:
+    dp.include_router(channel_setup.router)
+    dp.include_router(owner.router)
+    dp.include_router(post_maker.router)
+    dp.include_router(group_manager.router) # 👈 Router Register kiya
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
+
+
 if __name__ == "__main__":
     asyncio.run(main())
