@@ -17,7 +17,7 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
     first_name = message.from_user.first_name
     args = command.args
 
-    # 1. User Find/Create (Database Update)
+    # 1. User Find/Create
     user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
     if not user:
         try:
@@ -28,26 +28,30 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         except:
             db.rollback()
 
-    # 2. IF NO LINK (Simple /start) -> SHOW DIFFERENT PANELS
+    # 2. IF NO LINK (Simple /start)
     if not args:
         
-        # --- A. OWNER PANEL (Sabse Powerfull) ---
+        # --- A. OWNER PANEL (Redesigned) ---
         if user_id == OWNER_ID:
             msg = (
                 f"👑 <b>Hello Sir!</b>\n"
                 f"Welcome back to your Bot Control Center.\n\n"
-                f"⚙️ <b>Controls:</b>"
+                f"⚙️ <b>Select an option:</b>"
             )
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="➕ Add Admin", callback_data="add_admin_action"),
-                 InlineKeyboardButton(text="➖ Remove Admin", callback_data="remove_admin_action")],
+                # Row 1: Manage Admins (List wala feature)
+                [InlineKeyboardButton(text="👤 Manage Admins", callback_data="admin_dashboard")],
+                # Row 2: Premium (Future feature)
+                [InlineKeyboardButton(text="💎 Premium Users", callback_data="premium_info")],
+                # Row 3: Broadcast
                 [InlineKeyboardButton(text="📢 Create Post / Broadcast", callback_data="broadcast_info")],
+                # Row 4: Stats
                 [InlineKeyboardButton(text="📊 Check Stats", callback_data="stats_info")]
             ])
             await message.answer(msg, reply_markup=keyboard)
             return
 
-        # --- B. ADMIN PANEL (Limited Powers) ---
+        # --- B. ADMIN PANEL ---
         if user.is_admin:
             msg = (
                 f"👮‍♂️ <b>Hello Admin!</b>\n"
@@ -58,7 +62,7 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
             await message.answer(msg)
             return
 
-        # --- C. NORMAL USER PANEL (Friendly) ---
+        # --- C. NORMAL USER PANEL ---
         msg = (
             f"👋 <b>Hello {first_name} ji!</b>\n\n"
             f"Main aapki kya help kar sakta hu? 🤔\n"
@@ -68,9 +72,7 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         await message.answer(msg)
         return
 
-    # --- IF LINK EXISTS (Verify & File Logic Same as Before) ---
-    # ... (Niche ka verify wala code same rahega) ...
-    
+    # --- IF LINK EXISTS (Verify & File Logic) ---
     if args.startswith("verify_"):
         original_token = args.split("verify_")[1]
         user.verification_expiry = datetime.utcnow() + timedelta(hours=VERIFY_HOURS)
@@ -118,14 +120,3 @@ async def handle_start(message: types.Message, command: CommandObject, db: Sessi
         await method[file_record.file_type](file_record.file_id, caption=file_record.file_name)
     except Exception as e:
         await message.answer(f"❌ Error sending file: {e}")
-
-# Callbacks for Info Buttons
-@router.callback_query(F.data == "broadcast_info")
-async def broadcast_info(callback: types.CallbackQuery):
-    await callback.answer("Command use karein: /createpost", show_alert=True)
-
-@router.callback_query(F.data == "stats_info")
-async def stats_info(callback: types.CallbackQuery, db: Session):
-    user_count = db.query(BotUser).count()
-    file_count = db.query(FileRecord).count()
-    await callback.answer(f"📊 Stats:\nUsers: {user_count}\nFiles: {file_count}", show_alert=True)
