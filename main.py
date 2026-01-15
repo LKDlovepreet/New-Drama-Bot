@@ -6,13 +6,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from config.settings import BOT_TOKENS
-from database.db import init_db, get_db # 👈 Imports check karein
-from handlers import admin, user, post_maker, channel_setup, owner, group_manager
+from database.db import init_db
+from handlers import admin, user, post_maker, channel_setup, owner, bot2_handlers, save_media
 from middlewares.auth import AdminCheckMiddleware
 
 logging.basicConfig(level=logging.INFO)
 
-# --- FAKE SERVER ---
 async def health_check(request):
     return web.Response(text="Bot is Alive!")
 
@@ -24,42 +23,33 @@ async def start_web_server():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"🌍 Fake Web Server started on port {port}")
-# -------------------
+    print(f"🌍 Server running on port {port}")
 
 async def main():
     init_db()
     dp = Dispatcher()
-
-    # 👇 FIX: Simplified Middleware (No more generator error)
-    @dp.update.outer_middleware
-    async def db_session_middleware(handler, event, data):
-        session = get_db() # Session start karo
-        data["db"] = session
-        try:
-            return await handler(event, data) # Handler chalao
-        finally:
-            session.close() # Kaam khatam hone par session band karo
-
     admin.router.message.middleware(AdminCheckMiddleware())
 
-    # Routers Registration
+    # 👇 REGISTER ROUTERS
     dp.include_router(channel_setup.router)
     dp.include_router(owner.router)
+    dp.include_router(save_media.router)
     dp.include_router(post_maker.router)
-    dp.include_router(group_manager.router)
+    
+    # Bot 2 Logic
+    dp.include_router(bot2_handlers.router)
+    
+    # Bot 1 Logic
     dp.include_router(user.router)
     dp.include_router(admin.router)
 
-    if not BOT_TOKENS or BOT_TOKENS[0] == "":
-        print("❌ Error: BOT_TOKENS not found")
+    if not BOT_TOKENS:
+        print("❌ Error: BOT_TOKENS missing")
         return
 
     bots = [
-        Bot(
-            token=token, 
-            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-        ) for token in BOT_TOKENS
+        Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) 
+        for token in BOT_TOKENS
     ]
 
     print(f"🚀 Starting {len(bots)} bots...")
