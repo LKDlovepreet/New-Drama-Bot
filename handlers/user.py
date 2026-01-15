@@ -3,14 +3,13 @@ from aiogram import Router, F, types
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from database.models import FileRecord, BotUser
 from database.db import get_db
 from config.settings import MESSAGES, DEMO_VIDEO_URL, VERIFY_HOURS, OWNER_ID, LINK_BOT_ID
 from utils.shortener import get_short_link
 
 router = Router()
-# 👇 FILTER: Ye code sirf Content Bot par chalega
+# 👇 FILTER: Only Link Bot
 router.message.filter(F.bot.id == LINK_BOT_ID)
 
 @router.message(CommandStart())
@@ -21,19 +20,19 @@ async def handle_start(message: types.Message, command: CommandObject):
         first_name = message.from_user.first_name
         args = command.args
 
-        # 1. User Find/Create
+        # User Entry
         user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
         if not user:
             user = BotUser(user_id=user_id)
             db.add(user)
             db.commit()
 
-        # 2. IF NO LINK (Simple /start)
+        # NO LINK (/start only)
         if not args:
             if user_id == OWNER_ID:
                 msg = (
                     f"👑 <b>Hello Sir!</b>\n"
-                    f"Welcome back to your Bot Control Center.\n\n"
+                    f"Welcome back to your Link Bot.\n\n"
                     f"⚙️ <b>Select an option:</b>"
                 )
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -49,7 +48,7 @@ async def handle_start(message: types.Message, command: CommandObject):
                 await message.answer(f"👋 <b>Hello {first_name} ji!</b>\nLink bhejein to file dunga.")
             return
 
-        # --- IF LINK EXISTS ---
+        # LINK PROCESSING
         if args.startswith("verify_"):
             original_token = args.split("verify_")[1]
             user.verification_expiry = datetime.utcnow() + timedelta(hours=VERIFY_HOURS)
