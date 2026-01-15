@@ -3,15 +3,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKENS = os.getenv("BOT_TOKENS", "").split(",")
+#TOKENS (Comma separated in .env)
+# .env me: BOT_TOKENS=123:ABC,456:XYZ
+tokens_env = os.getenv("BOT_TOKENS", "").split(",")
+
+# Agar tokens set nahi hain to crash na ho
+BOT_TOKENS = [t for t in tokens_env if t]
+
 OWNER_ID = int(os.getenv("OWNER_ID", 0))
 admin_env = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 
-# 👇 FIX: Ab ye Koyeb ke Environment Variables se Key uthayega
-GPLINKS_API = os.getenv("GPLINKS_API") 
+# --- 👇 NEW SETTINGS (IDs manually daalein) ---
+# Yahan apne Bots ki Numeric ID replace karein
+LINK_BOT_ID = 7949301887   # <--- CONTENT BOT KI ID YAHA DALEIN
+GROUP_BOT_ID = 7635882029  # <--- GROUP MANAGER BOT KI ID YAHA DALEIN
 
-DEMO_VIDEO_URL = ""
+# Link Bot ka Username (Taaki Group bot sahi link bana sake)
+# Bina @ ke likhein (Example: "MyFileBot")
+LINK_BOT_USERNAME = "videosstoragebot" 
+
+# APIs
+GPLINKS_API = os.getenv("GPLINKS_API") 
+DEMO_VIDEO_URL = "https://t.me/LKD_Movies/14"
 VERIFY_HOURS = 1
 
 MESSAGES = {
