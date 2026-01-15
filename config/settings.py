@@ -3,24 +3,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- TOKENS ---
-# .env me: BOT_TOKENS=123:ABC,456:XYZ
-tokens_env = os.getenv("BOT_TOKENS", "").split(",")
-BOT_TOKENS = [t for t in tokens_env if t]
+# --- 👇 NEW: ALAG-ALAG TOKENS ---
+# Koyeb Settings me: 'LINK_BOT_TOKEN' aur 'GROUP_BOT_TOKEN' add karein
+LINK_BOT_TOKEN = os.getenv("LINK_BOT_TOKEN") 
+GROUP_BOT_TOKEN = os.getenv("GROUP_BOT_TOKEN")
 
+# Owner Config
 OWNER_ID = int(os.getenv("OWNER_ID", 0))
 admin_env = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 
-# --- 👇 NEW: IDs FROM ENVIRONMENT VARIABLES ---
-# Koyeb me 'LINK_BOT_ID' aur 'GROUP_BOT_ID' add karna mat bhoolna
-LINK_BOT_ID = int(os.getenv("LINK_BOT_ID", 0)) 
-GROUP_BOT_ID = int(os.getenv("GROUP_BOT_ID", 0))
+# Bot 1 Username (Taaki Bot 2 link bana sake)
+LINK_BOT_USERNAME = os.getenv("LINK_BOT_USERNAME", "YourFileBot") 
 
-# Link Bot ka Username (Bina @ ke)
-LINK_BOT_USERNAME = os.getenv("LINK_BOT_USERNAME", "videosstoragebot") 
-
-# --- APIs ---
+# APIs
 GPLINKS_API = os.getenv("GPLINKS_API") 
 DEMO_VIDEO_URL = "https://t.me/LKD_Movies/14"
 VERIFY_HOURS = 24
@@ -35,7 +31,7 @@ MESSAGES = {
     "verified_success": "✅ <b>Verification Successful!</b>\n\nAb aap agle 24 ghante tak unlimited files download kar sakte hain."
 }
 
-# --- IGNORE WORDS FOR INDEXING ---
+# Ignore Words for Bot 2 Indexing
 IGNORE_TERMS = [
     "480p", "720p", "1080p", "2160p", "4k", "hd", "fullhd", "camrip", 
     "print", "pre-dvd", "dvdscr", "web-dl", "webrip", "bluray", "dual", 
