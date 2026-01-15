@@ -9,7 +9,6 @@ from config.settings import OWNER_ID, LINK_BOT_ID
 from database.db import get_db
 
 router = Router()
-# 👇 FILTER: Only Content Bot
 router.message.filter(F.bot.id == LINK_BOT_ID)
 router.callback_query.filter(F.bot.id == LINK_BOT_ID)
 
