@@ -88,8 +88,8 @@ async def group_message_handler(message: types.Message):
     # C. DELETE LOGIC (Agar Match Nahi Mila)
     # Agar match mil gaya, to user ka message rehne do (ya delete kar sakte ho, apki marzi)
     # Agar match NAHI mila (Faltu baat), to DELETE.
-    if not match_found:
-        try:
-            await message.delete()
-        except Exception as e:
-            print(f"Delete Failed: {e} (Bot ko Admin banayein aur 'Delete Messages' right dein)")
+   # if not match_found:
+    #    try:
+    #        await message.delete()
+    #    except Exception as e:
+   #         print(f"Delete Failed: {e} (Bot ko Admin banayein aur 'Delete Messages' right dein)")
