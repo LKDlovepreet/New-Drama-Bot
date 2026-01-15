@@ -5,7 +5,7 @@ from database.models import FileRecord
 from config.settings import ADMIN_IDS, OWNER_ID, LINK_BOT_ID
 
 router = Router()
-# 👇 FILTER: Only Content Bot
+# 👇 FILTER: Only Link Bot
 router.message.filter(F.bot.id == LINK_BOT_ID)
 
 def generate_token():
