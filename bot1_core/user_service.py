@@ -1,11 +1,15 @@
+import os
 from datetime import datetime, timedelta
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.filters import CommandStart, CommandObject
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from sqlalchemy import select
 from database.models import FileRecord, BotUser
 from database.db import get_db
-from config.settings import MESSAGES, DEMO_VIDEO_URL, VERIFY_HOURS, OWNER_ID
+from config.settings import (
+    MESSAGES, DEMO_VIDEO_URL, VERIFY_HOURS, OWNER_ID, ADMIN_IDS,
+    AD_CHANNEL_URL, AD_GROUP_URL, OWNER_USERNAME
+)
 from utils.shortener import get_short_link
 
 router = Router()
@@ -18,34 +22,71 @@ async def handle_start(message: types.Message, command: CommandObject):
         first_name = message.from_user.first_name
         args = command.args
 
-        # User Entry
+        # 1. User Database Entry
         user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
         if not user:
             user = BotUser(user_id=user_id)
             db.add(user)
             db.commit()
 
-        # NO LINK (/start only)
+        # ------------------------------------------------
+        # SCENARIO 1: Simple Start (No Link)
+        # ------------------------------------------------
         if not args:
+            # Photo Path
+            photo = FSInputFile("statics/pics/img1.jpg")
+            
+            # --- A. OWNER VIEW ---
             if user_id == OWNER_ID:
-                msg = (
-                    f"👑 <b>Hello Sir!</b>\n"
-                    f"Welcome back to Bot 1 (Content Manager).\n\n"
-                    f"⚙️ <b>Controls:</b>"
+                caption = (
+                    "<b>Hello Father 🗽</b>\n\n"
+                    "⚙️ <b>Commands Info:</b>\n"
+                    "/createpost - Broadcast Message\n"
+                    "/start - Refresh Menu\n"
+                    "Forward File - Save to Database (Bot 2 only)\n\n"
+                    "👇 <b>Control Panel:</b>"
                 )
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="👤 Manage Admins", callback_data="admin_dashboard")],
-                    [InlineKeyboardButton(text="📢 Create Post / Broadcast", callback_data="broadcast_info")],
-                    [InlineKeyboardButton(text="📊 Check Stats", callback_data="stats_info")]
+                    [InlineKeyboardButton(text="👮 Manage Admins", callback_data="admin_dashboard")],
+                    [InlineKeyboardButton(text="📺 Connected Channels", callback_data="list_channels_bot1")],
+                    [InlineKeyboardButton(text="💎 Premium", callback_data="premium_alert")]
                 ])
-                await message.answer(msg, reply_markup=keyboard)
-            elif user.is_admin:
-                await message.answer("👮‍♂️ <b>Hello Admin!</b>\nFile bhejein -> Link lein.")
+                await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
+
+            # --- B. ADMIN VIEW ---
+            elif user_id in ADMIN_IDS:
+                caption = (
+                    "<b>Hello bro 🤌🏻</b>\n\n"
+                    "<b>How can I help you?</b>\n\n"
+                    "🛠 <b>Your Commands:</b>\n"
+                    "/createpost - Create Broadcast\n"
+                    "<i>(Note: Full access is reserved for Father)</i>"
+                )
+                # Admin ke liye buttons disable (None)
+                await message.answer_photo(photo, caption=caption)
+
+            # --- C. NORMAL USER VIEW ---
             else:
-                await message.answer(f"👋 <b>Hello {first_name} ji!</b>\nLink bhejein to file dunga.")
+                caption = (
+                    f"<b>Hello {first_name}</b>\n\n"
+                    "Agar aapko koi file chahiye to kripya us <b>Link</b> ka use karein jo aapko group ya channel se mila hai.\n\n"
+                    "<i>Main direct search support nahi karta.</i>"
+                )
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="📢 Join Our Channel", url=AD_CHANNEL_URL)],
+                    [InlineKeyboardButton(text="💬 Our Community", url=AD_GROUP_URL)],
+                    [InlineKeyboardButton(text="📢 Advertise Here", url=f"https://t.me/{OWNER_USERNAME}")]
+                ])
+                await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
+            
             return
 
-        # LINK PROCESSING
+        # ------------------------------------------------
+        # SCENARIO 2: Deep Link Processing (File/Verify)
+        # ------------------------------------------------
+        
+        # ... (Ye neeche ka logic same rahega jo file delivery ka hai) ...
+        
         if args.startswith("verify_"):
             original_token = args.split("verify_")[1]
             user.verification_expiry = datetime.utcnow() + timedelta(hours=VERIFY_HOURS)
