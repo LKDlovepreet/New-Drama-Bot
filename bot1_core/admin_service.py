@@ -177,3 +177,33 @@ async def process_add_admin(message: types.Message, state: FSMContext):
         db.commit(); await message.answer("✅ Added!")
     except: await message.answer("❌ Error")
     finally: db.close(); await state.clear()
+
+
+# ... (Upar ka code same) ...
+from database.models import Channel # Ensure Channel is imported
+
+# --- NEW CALLBACKS FOR OWNER MENU ---
+
+@router.callback_query(F.data == "premium_alert")
+async def premium_feature_off(callback: types.CallbackQuery):
+    await callback.answer("⚠️ Ye feature abhi OFF hai!", show_alert=True)
+
+@router.callback_query(F.data == "list_channels_bot1")
+async def list_channels_owner(callback: types.CallbackQuery):
+    if callback.from_user.id != OWNER_ID: return
+    
+    session = get_db()
+    try:
+        channels = session.query(Channel).all()
+        if not channels:
+            await callback.answer("Koi Channel Connect nahi hai.", show_alert=True)
+            return
+            
+        text = "📺 <b>Connected Channels List:</b>\n\n"
+        for ch in channels:
+            text += f"• {ch.channel_name} (ID: <code>{ch.chat_id}</code>)\n"
+            
+        await callback.message.answer(text) # Alag message bhejega list ka
+        await callback.answer()
+    finally:
+        session.close()
