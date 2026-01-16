@@ -23,6 +23,11 @@ LINK_BOT_USERNAME = os.getenv("LINK_BOT_USERNAME", "YourFileBot")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "Admin@123") 
 SESSION_TIME = 3600 
 
+# --- ADVERTISEMENT LINKS ---
+AD_CHANNEL_URL = os.getenv("AD_CHANNEL_URL", "https://t.me/YourChannel")
+AD_GROUP_URL = os.getenv("AD_GROUP_URL", "https://t.me/YourGroup")
+OWNER_USERNAME = os.getenv("OWNER_USERNAME", "YourUsername") # Bina @ ke
+
 # --- OTHER SETTINGS ---
 GPLINKS_API = os.getenv("GPLINKS_API") 
 DEMO_VIDEO_URL = "https://t.me/your_channel/123"
