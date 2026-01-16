@@ -12,7 +12,7 @@ def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
 async def send_otp_to_owner():
-    """Owner ko Telegram par OTP bhejo"""
+    """Owner ko phone par OTP bhejo"""
     otp = generate_otp()
     expiry = time.time() + 60  # 1 Minute Validity
     
