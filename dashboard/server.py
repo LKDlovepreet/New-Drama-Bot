@@ -23,9 +23,9 @@ LOGIN_HTML = """
 <body>
 <div class="auth-container">
     <div class="auth-box">
-        <h2>🔒 Admin Access</h2>
+        <h2>🔒 Owner Access</h2>
         <form action="/login" method="post">
-            <input type="password" name="password" placeholder="Enter Password" required>
+            <input type="password" name="passkey" placeholder="Enter Password" required>
             <br>
             <button type="submit">Next ➡️</button>
         </form>
@@ -47,9 +47,9 @@ VERIFY_HTML = """
 <div class="auth-container">
     <div class="auth-box">
         <h2>📲 Verification</h2>
-        <p style="color:#ccc">OTP sent to Telegram</p>
+        <p style="color:#ccc">OTP sent on your phone</p>
         <form action="/verify" method="post">
-            <input type="text" name="otp" placeholder="123456" required maxlength="6">
+            <input type="text" name="otp" placeholder="xxx.com" required maxlength="6">
             <br>
             <button type="submit" style="background:#28a745">Verify 🔓</button>
         </form>
