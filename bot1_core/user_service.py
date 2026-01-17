@@ -22,50 +22,50 @@ async def handle_start(message: types.Message, command: CommandObject):
         first_name = message.from_user.first_name
         args = command.args
 
-        # 1. User Database Entry
+        # User Entry
         user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
         if not user:
             user = BotUser(user_id=user_id)
             db.add(user)
             db.commit()
 
-        # ------------------------------------------------
-        # SCENARIO 1: Simple Start (No Link)
-        # ------------------------------------------------
+        # --- SCENARIO 1: Simple Start (Menu) ---
         if not args:
-            # Photo Path
-            photo = FSInputFile("statics/pics/img1.jpg")
+            # Photo Load (Error handling included)
+            photo_path = "statics/pics/img1.jpg"
+            if not os.path.exists(photo_path):
+                await message.answer("⚠️ Error: 'img1.jpg' not found in statics/pics/")
+                return
+
+            photo = FSInputFile(photo_path)
             
-            # --- A. OWNER VIEW ---
+            # A. OWNER VIEW
             if user_id == OWNER_ID:
                 caption = (
                     "<b>Hello Father 🗽</b>\n\n"
-                    "⚙️ <b>Commands Info:</b>\n"
+                    "⚙️ <b>Owner Controls:</b>\n"
                     "/createpost - Broadcast Message\n"
                     "/start - Refresh Menu\n"
-                    "Forward File - Save to Database (Bot 2 only)\n\n"
-                    "👇 <b>Control Panel:</b>"
+                    "Add me to Channel -> I will auto-detect."
                 )
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    # 👇 Updated Button Callback
                     [InlineKeyboardButton(text="👮 Manage Admins", callback_data="admin_dashboard")],
-                    [InlineKeyboardButton(text="📺 Connected Channels", callback_data="list_channels_bot1")],
+                    [InlineKeyboardButton(text="📢 Connected Chats (Add/Remove)", callback_data="list_chats")],
                     [InlineKeyboardButton(text="💎 Premium", callback_data="premium_alert")]
                 ])
                 await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
 
-            # --- B. ADMIN VIEW ---
+            # B. ADMIN VIEW
             elif user_id in ADMIN_IDS:
                 caption = (
                     "<b>Hello bro 🤌🏻</b>\n\n"
-                    "<b>How can I help you?</b>\n\n"
-                    "🛠 <b>Your Commands:</b>\n"
-                    "/createpost - Create Broadcast\n"
-                    "<i>(Note: Full access is reserved for Father)</i>"
+                    "🛠 <b>Admin Panel:</b>\n"
+                    "/createpost - Broadcast Message"
                 )
-                # Admin ke liye buttons disable (None)
                 await message.answer_photo(photo, caption=caption)
 
-            # --- C. NORMAL USER VIEW ---
+            # C. USER VIEW
             else:
                 caption = (
                     f"<b>Hello {first_name}</b>\n\n"
@@ -81,12 +81,7 @@ async def handle_start(message: types.Message, command: CommandObject):
             
             return
 
-        # ------------------------------------------------
-        # SCENARIO 2: Deep Link Processing (File/Verify)
-        # ------------------------------------------------
-        
-        # ... (Ye neeche ka logic same rahega jo file delivery ka hai) ...
-        
+        # --- SCENARIO 2: Link Processing (Same as before) ---
         if args.startswith("verify_"):
             original_token = args.split("verify_")[1]
             user.verification_expiry = datetime.utcnow() + timedelta(hours=VERIFY_HOURS)
