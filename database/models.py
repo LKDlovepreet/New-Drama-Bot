@@ -19,6 +19,8 @@ class Channel(Base):
     chat_id = Column(BigInteger, unique=True)
     channel_name = Column(String)
     added_by = Column(BigInteger)
+    # 👇 NEW: Broadcast Control
+    broadcast_enabled = Column(Boolean, default=False) 
 
 class BotUser(Base):
     __tablename__ = "bot_users"
@@ -27,12 +29,11 @@ class BotUser(Base):
     joined_date = Column(DateTime, default=datetime.utcnow)
     is_premium = Column(Boolean, default=False)
     verification_expiry = Column(DateTime, nullable=True)
-    is_admin = Column(Boolean, default=False) 
+    is_admin = Column(Boolean, default=False)
 
-# 👇 NEW TABLE: Group Settings ke liye
 class GroupSettings(Base):
     __tablename__ = "group_settings"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    chat_id = Column(BigInteger, unique=True) # Group ID
-    welcome_enabled = Column(Boolean, default=True) # Welcome message on/off
-    auto_search = Column(Boolean, default=True)     # Auto reply on/off
+    chat_id = Column(BigInteger, unique=True)
+    welcome_enabled = Column(Boolean, default=True)
+    auto_search = Column(Boolean, default=True)
