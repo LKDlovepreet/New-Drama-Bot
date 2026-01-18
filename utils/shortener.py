@@ -9,7 +9,7 @@ async def get_short_link(long_url):
             return None
 
         # GPLinks API URL
-        api_url = f"https://mdiskshortner.link/api?api={SHORTENER_API}&url={long_url}&format=text"
+        api_url = f"https://gplinks.in/api?api={SHORTENER_API}&url={long_url}&format=text"
         
         # Chrome ban kar request bhejein
         async with AsyncSession(impersonate="chrome110") as session:
@@ -19,14 +19,14 @@ async def get_short_link(long_url):
                 result = response.text.strip()
                 
                 # Debugging ke liye
-                print(f"🔗 mdiskshortner  Response: {result[:50]}") 
+                print(f"🔗 gplinks  Response: {result[:50]}") 
 
                 # Agar link 'http' se shuru ho raha hai to sahi hai
                 if result.startswith("http"):
                     return result
                 else:
                     # Agar koi error message aaya
-                    print(f"❌ mdiskshortner Error: {result}")
+                    print(f"❌ gplinks Error: {result}")
                     return None
             else:
                 print(f"❌ HTTP Error: {response.status_code}")
