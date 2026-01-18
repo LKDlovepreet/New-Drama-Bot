@@ -42,7 +42,7 @@ async def premium_feature_off(callback: types.CallbackQuery):
         await callback.answer("Menu Updated")
 
 # ====================================================
-# 2. LINK GENERATOR (Restored)
+# 2. LINK GENERATOR (Updated: Generates Full Link)
 # ====================================================
 @router.message((F.photo | F.video | F.document | F.text) & F.chat.type == "private")
 async def save_media_and_get_link(message: types.Message, state: FSMContext):
@@ -60,9 +60,8 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
 
     # 1. Content Type Pehchano
     if message.text:
-        # Text messages (links etc.)
         file_id = message.text
-        file_name = message.text.split("\n")[0][:50] # Pehli line ko naam bana lo
+        file_name = message.text.split("\n")[0][:50]
         file_type = "text"
     elif message.photo:
         file_id = message.photo[-1].file_id
@@ -91,12 +90,17 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
         session.add(new_file)
         session.commit()
         
-        # 3. Reply with Link
+        # 👇 NEW LOGIC: Full Link Generation
+        bot_username = (await message.bot.get_me()).username
+        deep_link = f"https://t.me/{bot_username}?start={token}"
+        
+        # 3. Reply with Full Link
         await message.reply(
-            f"✅ <b>File Saved!</b>\n\n"
+            f"✅ <b>Content Saved!</b>\n\n"
             f"📂 <b>Name:</b> {file_name}\n"
-            f"🔗 <b>Token:</b> <code>{token}</code>\n\n"
-            f"<i>Link use karne ke liye /start code karein.</i>"
+            f"🔗 <b>Link:</b>\n{deep_link}\n\n"
+            f"<i>(User jab is link par click karega, tab verification check hoga)</i>",
+            disable_web_page_preview=True
         )
     except Exception as e:
         await message.reply(f"❌ Error: {e}")
