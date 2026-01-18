@@ -1,5 +1,6 @@
 import uuid
 import asyncio
+import os
 from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
@@ -8,14 +9,23 @@ from aiogram.fsm.state import State, StatesGroup
 
 from database.db import get_db, SessionLocal
 from database.models import BotUser, FileRecord, Channel
-from config.settings import OWNER_ID, ADMIN_IDS
+from config.settings import OWNER_ID, ADMIN_IDS, AD_CHANNEL_URL
 from utils.states import PostWizard
+
+# Storage Channel ID from Env
+STORAGE_CHANNEL_ID = int(os.getenv("STORAGE_CHANNEL_ID", 0))
 
 router = Router()
 
 class AdminState(StatesGroup):
     waiting_for_id_add = State()
     waiting_for_id_remove = State()
+
+class BulkState(StatesGroup):
+    uploading = State()
+
+class TopicState(StatesGroup):
+    waiting_for_name = State()
 
 def generate_token():
     return str(uuid.uuid4())[:8]
@@ -113,9 +123,140 @@ async def run_broadcast(bot, data, target, admin_chat_id):
     await bot.send_message(admin_chat_id, f"✅ Done! Sent to {sent} chats.")
 
 # ====================================================
-# 2. LINK GENERATOR (Fixed: Ignor Commands)
+# 2. TOPIC MANAGEMENT (Save Content to Topics)
 # ====================================================
-# 👇 FIX: Added ~F.text.startswith("/") to ignore commands
+
+@router.message(Command("set_topic"))
+async def manage_topics(message: types.Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID: return
+    
+    if STORAGE_CHANNEL_ID == 0:
+        await message.answer("⚠️ <b>Error:</b> STORAGE_CHANNEL_ID .env me set nahi hai.")
+        return
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Create New Topic", callback_data="create_new_topic")],
+        [InlineKeyboardButton(text="❌ Reset / Deselect", callback_data="reset_topic")]
+    ])
+    await message.answer("📂 <b>Topic Manager</b>\nSelect kar lo ki files kahan save karni hain.", reply_markup=keyboard)
+
+@router.callback_query(F.data == "create_new_topic")
+async def ask_topic_name(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer("📝 <b>Topic ka naam likho:</b>\n(Example: Movies, Notes, Series)")
+    await state.set_state(TopicState.waiting_for_name)
+    await callback.answer()
+
+@router.message(TopicState.waiting_for_name)
+async def create_topic_process(message: types.Message, state: FSMContext):
+    topic_name = message.text
+    try:
+        # Create Topic in Storage Group
+        topic = await message.bot.create_forum_topic(chat_id=STORAGE_CHANNEL_ID, name=topic_name)
+        
+        # Save ID to User DB
+        db = get_db()
+        user = db.query(BotUser).filter(BotUser.user_id == message.from_user.id).first()
+        user.active_topic_id = topic.message_thread_id
+        db.commit()
+        db.close()
+        
+        await message.answer(f"✅ <b>Topic Created & Selected!</b>\n\n📂 Name: {topic_name}\n🆔 ID: {topic.message_thread_id}\n\nAb jo file bhejoge wo seedha yahan save hogi.")
+    except Exception as e:
+        await message.answer(f"❌ Error creating topic: {e}\n(Make sure Bot is Admin in Storage Group)")
+    finally:
+        await state.clear()
+
+@router.callback_query(F.data == "reset_topic")
+async def reset_topic(callback: types.CallbackQuery):
+    db = get_db()
+    user = db.query(BotUser).filter(BotUser.user_id == callback.from_user.id).first()
+    user.active_topic_id = 0
+    db.commit()
+    db.close()
+    await callback.message.edit_text("✅ Topic Deselected. Files ab kahin forward nahi hongi.")
+
+# ====================================================
+# 3. BULK LINK FEATURE (/bulk)
+# ====================================================
+
+@router.message(Command("bulk"))
+async def start_bulk_mode(message: types.Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID: return
+    
+    await state.set_data({'files': [], 'names': []})
+    await state.set_state(BulkState.uploading)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ DONE - Create Link", callback_data="finish_bulk")]])
+    await message.answer("📚 <b>Bulk Mode ON</b>\n\nAb jitni files bhejni hain bhejo (Forward ya Upload).\nJab ho jaye to neeche button dabana.", reply_markup=keyboard)
+
+@router.message(BulkState.uploading, (F.photo | F.video | F.document | F.text))
+async def handle_bulk_files(message: types.Message, state: FSMContext):
+    # Determine ID and Name
+    f_id, f_type, f_name = None, "text", "Unknown"
+    
+    if message.text: return # Text ignore karte hain bulk me, sirf files
+    
+    if message.photo:
+        f_id = message.photo[-1].file_id; f_type="photo"; f_name="Photo"
+    elif message.video:
+        f_id = message.video.file_id; f_type="video"; f_name=message.caption or "Video"
+    elif message.document:
+        f_id = message.document.file_id; f_type="doc"; f_name=message.document.file_name
+
+    data = await state.get_data()
+    current_files = data['files']
+    current_names = data['names']
+    
+    # Store format: "type|file_id" (taaki baad me type pata rahe)
+    current_files.append(f"{f_type}|{f_id}")
+    current_names.append(f_name)
+    
+    await state.update_data(files=current_files, names=current_names)
+    
+    # Edit Previous Message or Send new status? Send Status is better.
+    # await message.reply(f"➕ Added. Total: {len(current_files)}") 
+
+@router.callback_query(BulkState.uploading, F.data == "finish_bulk")
+async def finish_bulk_process(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    files = data['files']
+    names = data['names']
+    
+    if not files:
+        await callback.answer("Koi file nahi mili!", show_alert=True)
+        return
+
+    # Join all IDs with a separator (Example: ":::")
+    # Format: "video|id1:::doc|id2:::photo|id3"
+    joined_ids = ":::".join(files)
+    bulk_name = f"Batch of {len(files)} Files"
+    
+    db = get_db()
+    try:
+        token = generate_token()
+        new_file = FileRecord(
+            unique_token=token,
+            file_id=joined_ids,  # Multiple IDs stored here
+            file_name=bulk_name,
+            file_type="batch",   # Special Type
+            uploader_id=callback.from_user.id
+        )
+        db.add(new_file)
+        db.commit()
+        
+        bot_username = (await callback.bot.get_me()).username
+        link = f"https://t.me/{bot_username}?start={token}"
+        
+        msg = f"📦 <b>Bulk Link Created!</b>\n\n📄 Files: {len(files)}\n🔗 Link:\n{link}"
+        await callback.message.edit_text(msg)
+        
+    finally:
+        db.close()
+        await state.clear()
+
+# ====================================================
+# 4. SINGLE MEDIA SAVE (With Topic Forwarding) - UPDATED
+# ====================================================
 @router.message((F.photo | F.video | F.document | (F.text & ~F.text.startswith("/"))) & F.chat.type == "private")
 async def save_media_and_get_link(message: types.Message, state: FSMContext):
     # Ignore if in wizard
@@ -148,9 +289,21 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
 
     session = get_db()
     try:
+        # 1. Save to DB
         token = generate_token()
         new_file = FileRecord(unique_token=token, file_id=file_id, file_name=file_name, file_type=file_type, uploader_id=user_id)
         session.add(new_file)
+        
+        # 2. Check Topic & Forward
+        if STORAGE_CHANNEL_ID != 0:
+            user_db = session.query(BotUser).filter(BotUser.user_id == user_id).first()
+            if user_db and user_db.active_topic_id and user_db.active_topic_id != 0:
+                try:
+                    # Forward to Storage Channel -> Specific Topic
+                    await message.forward(chat_id=STORAGE_CHANNEL_ID, message_thread_id=user_db.active_topic_id)
+                except Exception as e:
+                    print(f"Topic Forward Error: {e}")
+
         session.commit()
         
         bot_username = (await message.bot.get_me()).username
@@ -170,7 +323,7 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
         session.close()
 
 # ====================================================
-# 3. PREMIUM & BACK HANDLERS
+# 5. PREMIUM & BACK HANDLERS
 # ====================================================
 @router.callback_query(F.data == "premium_alert")
 async def premium_feature_off(callback: types.CallbackQuery):
@@ -197,7 +350,7 @@ async def back_to_home(callback: types.CallbackQuery):
     except: pass
 
 # ====================================================
-# 4. MANAGE ADMINS
+# 6. MANAGE ADMINS
 # ====================================================
 @router.callback_query(F.data == "admin_dashboard")
 async def show_admin_dashboard(callback: types.CallbackQuery):
@@ -244,7 +397,7 @@ async def process_remove_admin(m: types.Message, s: FSMContext):
     finally: db.close(); await s.clear()
 
 # ====================================================
-# 5. CONNECTED CHATS
+# 7. CONNECTED CHATS
 # ====================================================
 @router.callback_query(F.data == "list_chats")
 async def list_connected_chats(callback: types.CallbackQuery):
