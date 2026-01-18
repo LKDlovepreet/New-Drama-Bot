@@ -29,7 +29,7 @@ AD_GROUP_URL = os.getenv("AD_GROUP_URL", "https://t.me/YourGroup")
 OWNER_USERNAME = os.getenv("OWNER_USERNAME", "YourUsername") # Bina @ ke
 
 # --- OTHER SETTINGS ---
-GPLINKS_API = os.getenv("GPLINKS_API") 
+SHORTENER_API = os.getenv("SHORTENER_API") 
 DEMO_VIDEO_URL = "https://t.me/your_channel/123"
 VERIFY_HOURS = 24
 
