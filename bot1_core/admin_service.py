@@ -158,9 +158,10 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
         
         await message.reply(
             f"✅ <b>Content Saved!</b>\n\n"
+            f" here's your link 👇🏻"
             f"📂 <b>Name:</b> {file_name}\n"
-            f"🔗 <b>Link:</b>\n{deep_link}\n\n"
-            f"<i>Link click karne par verification check hoga.</i>",
+            f"🔗 <b>Link:</b>\n<code>{deep_link}</code>\n\n"
+            ,
             disable_web_page_preview=True
         )
     except Exception as e:
