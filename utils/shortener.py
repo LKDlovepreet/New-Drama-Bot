@@ -9,7 +9,7 @@ async def get_short_link(long_url):
             return None
 
         # GPLinks API URL
-        api_url = f"https://mdiskshortner.link/api?api={GPLINKS_API}&url={long_url}&format=text"
+        api_url = f"https://mdiskshortner.link/api?api={SHORTENER_API}&url={long_url}&format=text"
         
         # Chrome ban kar request bhejein
         async with AsyncSession(impersonate="chrome110") as session:
