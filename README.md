@@ -30,18 +30,3 @@ This project consists of two distinct bots working together with a central datab
 * **Live Stats:** View Total Users, Files, and Active Channels.
 * **Admin Management:** Add/Remove admins via UI.
 * **Modern UI:** Dark/Light themed responsive design.
-
----
-
-## 🛠️ Project Structure
-
-The project is modularized for better scalability:
-
-```text
-├── bot1_core/          # Logic for Link Bot (User Service, Admin Service)
-├── bot2_core/          # Logic for Group Bot (Manager, Indexer)
-├── config/             # Configuration & Environment loading
-├── dashboard/          # Web Server, HTML/CSS, OTP Service
-├── database/           # Database Models & Connection
-├── utils/              # Helper scripts (Shortener, States)
-└── main.py             # Entry point (Runs both bots + Dashboard)
