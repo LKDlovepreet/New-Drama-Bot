@@ -30,7 +30,7 @@ OWNER_USERNAME = os.getenv("OWNER_USERNAME", "YourUsername") # Bina @ ke
 
 # --- OTHER SETTINGS ---
 SHORTENER_API = os.getenv("SHORTENER_API") 
-DEMO_VIDEO_URL = "https://t.me/your_channel/123"
+DEMO_VIDEO_URL = "https://t.me/LKD_Movies/14"
 VERIFY_HOURS = 24
 
 IGNORE_TERMS = [
