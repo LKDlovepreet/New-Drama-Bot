@@ -138,3 +138,41 @@ async def handle_start(message: types.Message, command: CommandObject):
 
     finally:
         db.close()
+
+        # ... (Verification Logic Same Rahega) ...
+
+        await message.answer(MESSAGES["sending_file"])
+        try:
+            # === 📦 BATCH / BULK HANDLING ===
+            if file_record.file_type == "batch":
+                # Data format: "type|id:::type|id:::type|id"
+                all_files = file_record.file_id.split(":::")
+                
+                await message.answer(f"📦 <b>Sending {len(all_files)} files...</b>")
+                
+                for item in all_files:
+                    try:
+                        ftype, fid = item.split("|")
+                        if ftype == "photo": await message.answer_photo(fid)
+                        elif ftype == "video": await message.answer_video(fid)
+                        elif ftype == "doc": await message.answer_document(fid)
+                        # Thoda delay taaki spam block na ho
+                        await asyncio.sleep(0.5) 
+                    except:
+                        continue
+                
+                await message.answer("✅ <b>All files sent!</b>")
+                return
+            
+            # === SINGLE FILE HANDLING (Old) ===
+            if file_record.file_type == "text":
+                await message.answer(file_record.file_id, disable_web_page_preview=False)
+            elif file_record.file_type == "photo":
+                await message.answer_photo(file_record.file_id, caption=file_record.file_name)
+            elif file_record.file_type == "video":
+                await message.answer_video(file_record.file_id, caption=file_record.file_name)
+            elif file_record.file_type == "doc":
+                await message.answer_document(file_record.file_id, caption=file_record.file_name)
+                
+        except Exception as e:
+            await message.answer(f"❌ Error sending file: {e}")
