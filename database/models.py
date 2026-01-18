@@ -19,7 +19,6 @@ class Channel(Base):
     chat_id = Column(BigInteger, unique=True)
     channel_name = Column(String)
     added_by = Column(BigInteger)
-    # 👇 NEW: Broadcast Control
     broadcast_enabled = Column(Boolean, default=False) 
 
 class BotUser(Base):
@@ -30,6 +29,8 @@ class BotUser(Base):
     is_premium = Column(Boolean, default=False)
     verification_expiry = Column(DateTime, nullable=True)
     is_admin = Column(Boolean, default=False)
+    # 👇 YE LINE MISSING THI, ISLIYE ERROR AA RAHA THA
+    active_topic_id = Column(Integer, default=0)
 
 class GroupSettings(Base):
     __tablename__ = "group_settings"
@@ -37,3 +38,10 @@ class GroupSettings(Base):
     chat_id = Column(BigInteger, unique=True)
     welcome_enabled = Column(Boolean, default=True)
     auto_search = Column(Boolean, default=True)
+
+# 👇 NEW TABLE: Purane topics yaad rakhne ke liye
+class StorageTopic(Base):
+    __tablename__ = "storage_topics"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    topic_name = Column(String) # Jaise: "Movies", "Notes"
+    topic_id = Column(BigInteger) # Telegram ka Topic ID
