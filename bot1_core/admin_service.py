@@ -51,8 +51,13 @@ async def cancel_process(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("✅ <b>Process Cancelled!</b>\nMain ab normal mode me hu.", reply_markup=ReplyKeyboardRemove())
 
+# Imports me ye zaroor check karein ki StorageTopic added ho
+from database.models import BotUser, FileRecord, Channel, StorageTopic
+
+# ... (Cancel command ke baad aur Bulk command se pehle ye code replace karein) ...
+
 # ====================================================
-# 2. TOPIC MANAGEMENT
+# 2. TOPIC MANAGEMENT (Smart List & Select)
 # ====================================================
 @router.message(Command("set_topic"))
 async def manage_topics(message: types.Message):
@@ -62,35 +67,87 @@ async def manage_topics(message: types.Message):
         await message.answer("⚠️ <b>Error:</b> STORAGE_CHANNEL_ID .env me set nahi hai.")
         return
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➕ Create/Select Topic", callback_data="create_new_topic")],
-        [InlineKeyboardButton(text="❌ Deselect Topic", callback_data="reset_topic")]
-    ])
-    await message.answer("📂 <b>Topic Manager</b>", reply_markup=kb)
+    db = get_db()
+    try:
+        # Purane Topics Fetch karo
+        saved_topics = db.query(StorageTopic).all()
+        
+        # User ka current active topic
+        user = db.query(BotUser).filter(BotUser.user_id == message.from_user.id).first()
+        current_active = user.active_topic_id if user else 0
 
+        msg = f"📂 <b>Topic Manager</b>\nActive Topic ID: <code>{current_active}</code>\n\nSelect a topic or Create New:"
+        
+        keyboard = []
+        # List Existing Topics
+        for topic in saved_topics:
+            status = "✅" if topic.topic_id == current_active else "▪️"
+            btn_text = f"{status} {topic.topic_name}"
+            # Button click par select karega
+            keyboard.append([InlineKeyboardButton(text=btn_text, callback_data=f"select_topic_{topic.topic_id}")])
+        
+        # New Create Button
+        keyboard.append([InlineKeyboardButton(text="➕ Create New Topic", callback_data="create_new_topic")])
+        keyboard.append([InlineKeyboardButton(text="❌ Deselect / Reset", callback_data="reset_topic")])
+
+        await message.answer(msg, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard))
+    finally:
+        db.close()
+
+# --- Select Existing Topic ---
+@router.callback_query(F.data.startswith("select_topic_"))
+async def select_existing_topic(c: types.CallbackQuery):
+    topic_id = int(c.data.split("_")[2])
+    
+    db = get_db()
+    try:
+        user = db.query(BotUser).filter(BotUser.user_id == c.from_user.id).first()
+        if user:
+            user.active_topic_id = topic_id
+            db.commit()
+            
+            # Topic ka naam dhundo display ke liye
+            t_name = "Selected"
+            topic_record = db.query(StorageTopic).filter(StorageTopic.topic_id == topic_id).first()
+            if topic_record: t_name = topic_record.topic_name
+            
+            await c.message.edit_text(f"✅ <b>Topic Active:</b> {t_name}\nID: {topic_id}\n\nAb files yahan save hongi.")
+        else:
+            await c.answer("User not found", show_alert=True)
+    finally:
+        db.close()
+
+# --- Create New Topic ---
 @router.callback_query(F.data == "create_new_topic")
 async def ask_topic_name(c: types.CallbackQuery, state: FSMContext):
-    await c.message.answer("📝 <b>Topic ka naam likho:</b>")
+    await c.message.answer("📝 <b>New Topic ka naam likho:</b>")
     await state.set_state(TopicState.waiting_for_name)
     await c.answer()
 
 @router.message(TopicState.waiting_for_name)
 async def create_topic_process(message: types.Message, state: FSMContext):
     topic_name = message.text
+    db = get_db()
     try:
+        # 1. Telegram par Topic Banao
         topic = await message.bot.create_forum_topic(chat_id=STORAGE_CHANNEL_ID, name=topic_name)
         
-        db = get_db()
+        # 2. StorageTopic Table me Save karo (Taaki list me aaye)
+        new_storage_topic = StorageTopic(topic_name=topic_name, topic_id=topic.message_thread_id)
+        db.add(new_storage_topic)
+        
+        # 3. User ka Active Topic set karo
         user = db.query(BotUser).filter(BotUser.user_id == message.from_user.id).first()
         if user:
             user.active_topic_id = topic.message_thread_id
-            db.commit()
-        db.close()
         
-        await message.answer(f"✅ <b>Topic Selected:</b> {topic_name}\nFiles ab yahan save hongi.")
+        db.commit()
+        
+        await message.answer(f"✅ <b>Topic Created & Selected!</b>\n\n📂 Name: {topic_name}\n🆔 ID: {topic.message_thread_id}\n\nList me add ho gaya hai.")
     except Exception as e:
-        await message.answer(f"❌ Error: {e}")
+        await message.answer(f"❌ Error creating topic: {e}\n(Make sure Bot is Admin in Storage Group)")
     finally:
+        db.close()
         await state.clear()
 
 @router.callback_query(F.data == "reset_topic")
