@@ -8,11 +8,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from database.db import get_db, SessionLocal
-# 👇 StorageTopic added here
 from database.models import BotUser, FileRecord, Channel, StorageTopic
 from config.settings import OWNER_ID, ADMIN_IDS
 
-# 👇 PostWizard yahan se import hoga (Duplicate hataya)
+# 👇 IMPORT FROM UTILS (Correct Way)
 from utils.states import PostWizard
 
 # Env se Storage Channel ID
@@ -65,7 +64,7 @@ async def manage_topics(message: types.Message):
 
         # User ka current active topic
         user = db.query(BotUser).filter(BotUser.user_id == message.from_user.id).first()
-        current_active = user.active_topic_id if user else 0
+        current_active = getattr(user, 'active_topic_id', 0)
 
         msg = f"📂 <b>Topic Manager</b>\nActive Topic ID: <code>{current_active}</code>\n\nSelect a topic or Create New:"
 
@@ -241,7 +240,7 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
         forwarded_msg = ""
         if STORAGE_CHANNEL_ID != 0:
             user_db = session.query(BotUser).filter(BotUser.user_id == user_id).first()
-            if user_db and user_db.active_topic_id and user_db.active_topic_id != 0:
+            if user_db and getattr(user_db, 'active_topic_id', 0) != 0:
                 try:
                     await message.forward(chat_id=STORAGE_CHANNEL_ID, message_thread_id=user_db.active_topic_id)
                     forwarded_msg = "\n✅ <b>Saved to Topic!</b>"
@@ -272,26 +271,35 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
 async def start_post(message: types.Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID: return
     await state.clear()
-    await message.answer("📸 <b>Step 1:</b> Send Media or /cancel.")
+    await message.answer("📸 <b>Step 1:</b> Send Media (Photo/Video/File) or /cancel.")
     await state.set_state(PostWizard.waiting_for_media)
 
-@router.message(PostWizard.waiting_for_media)
+# ✅ FIX: Ab duplicate class nahi hai, imports se sahi State use hoga.
+# ✅ FIX: Catch-All handler added for Invalid Media (Ab Bot chup nahi rahega)
+
+@router.message(PostWizard.waiting_for_media, F.photo | F.video | F.document)
 async def process_media(message: types.Message, state: FSMContext):
-    media_id = None
-    media_type = "text"
+    try:
+        media_id = None
+        media_type = "text"
 
-    if message.photo:
-        media_id = message.photo[-1].file_id; media_type = "photo"
-    elif message.video:
-        media_id = message.video.file_id; media_type = "video"
-    elif message.document:
-        media_id = message.document.file_id; media_type = "doc"
-    else:
-        await message.answer("❌ Invalid Media! Photo, Video ya File bhejein."); return
+        if message.photo:
+            media_id = message.photo[-1].file_id; media_type = "photo"
+        elif message.video:
+            media_id = message.video.file_id; media_type = "video"
+        elif message.document:
+            media_id = message.document.file_id; media_type = "doc"
+        
+        await state.update_data(media_id=media_id, media_type=media_type)
+        await message.answer("📝 <b>Step 2:</b> Caption likhein (ya SKIP likhein).")
+        await state.set_state(PostWizard.waiting_for_caption)
+    except Exception as e:
+        await message.answer(f"❌ Error: {e}")
 
-    await state.update_data(media_id=media_id, media_type=media_type)
-    await message.answer("📝 <b>Step 2:</b> Caption (or SKIP).")
-    await state.set_state(PostWizard.waiting_for_caption)
+# 👇 Catch-All handler: Agar user Text ya Sticker bhej de to ye chalega
+@router.message(PostWizard.waiting_for_media)
+async def invalid_media(message: types.Message):
+    await message.answer("❌ <b>Invalid Media!</b>\nKripya Photo, Video ya Document bhejein.")
 
 @router.message(PostWizard.waiting_for_caption)
 async def process_caption(message: types.Message, state: FSMContext):
@@ -336,7 +344,7 @@ async def process_target(message: types.Message, state: FSMContext):
 
 @router.message(PostWizard.confirmation)
 async def confirm_send(message: types.Message, state: FSMContext):
-    if message.text and message.text.lower() == "yes":
+    if message.text.lower() == "yes":
         data = await state.get_data()
         asyncio.create_task(run_broadcast(message.bot, data, data['target'], message.chat.id))
         await message.answer("🚀 Started!")
@@ -348,7 +356,6 @@ async def run_broadcast(bot, data, target, admin_chat_id):
     sent = 0
     session = SessionLocal()
     try:
-        # Channels
         if target in ["📢 Channels Only", "🚀 Both (All)"]:
             channels = session.query(Channel).filter(Channel.broadcast_enabled == True).all()
             for ch in channels:
@@ -360,7 +367,6 @@ async def run_broadcast(bot, data, target, admin_chat_id):
                 except: pass
                 await asyncio.sleep(0.05)
 
-        # Users
         if target in ["👥 Users Only", "🚀 Both (All)"]:
             users = session.query(BotUser).all()
             for u in users:
