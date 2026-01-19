@@ -14,7 +14,6 @@ from config.settings import OWNER_ID, ADMIN_IDS
 # 👇 IMPORT FROM UTILS (Correct Way)
 from utils.states import PostWizard
 
-# Env se Storage Channel ID
 STORAGE_CHANNEL_ID = int(os.getenv("STORAGE_CHANNEL_ID", 0))
 
 router = Router()
@@ -271,7 +270,7 @@ async def save_media_and_get_link(message: types.Message, state: FSMContext):
 async def start_post(message: types.Message, state: FSMContext):
     if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID: return
     await state.clear()
-    await message.answer("📸 <b>Step 1:</b> Send Media (Photo/Video/File) or /cancel.")
+    await message.answer("📸 <b>Step 1:</b> Send Media (Photo/Video/File)")
     await state.set_state(PostWizard.waiting_for_media)
 
 # ✅ FIX: Ab duplicate class nahi hai, imports se sahi State use hoga.
