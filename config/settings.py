@@ -1,36 +1,37 @@
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
 
-# --- TOKENS ---
-LINK_BOT_TOKEN = os.getenv("LINK_BOT_TOKEN") 
-GROUP_BOT_TOKEN = os.getenv("GROUP_BOT_TOKEN")
-AUTH_BOT_TOKEN = os.getenv("AUTH_BOT_TOKEN") 
+LINK_BOT_TOKEN = os.getenv("LINK_BOT_TOKEN")
 
-# --- OWNER & ADMINS (Ye Missing Tha) ---
+GROUP_BOT_TOKEN = os.getenv("GROUP_BOT_TOKEN")
+
+AUTH_BOT_TOKEN = os.getenv("AUTH_BOT_TOKEN")
+
 OWNER_ID = int(os.getenv("OWNER_ID", 0))
 admin_env = os.getenv("ADMIN_IDS", "")
-# 👇 Ye line wapis aa gayi hai
+
 ADMIN_IDS = [int(x) for x in admin_env.split(",")] if admin_env else []
 
-# --- DATABASE & IDs ---
-LINK_BOT_ID = int(os.getenv("LINK_BOT_ID", 0)) 
+LINK_BOT_ID = int(os.getenv("LINK_BOT_ID", 0))
+
 GROUP_BOT_ID = int(os.getenv("GROUP_BOT_ID", 0))
-LINK_BOT_USERNAME = os.getenv("LINK_BOT_USERNAME", "YourFileBot") 
 
-# --- DASHBOARD SECURITY ---
-DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "Admin@123") 
+LINK_BOT_USERNAME = os.getenv("LINK_BOT_USERNAME", "yourfiles69bot")
+
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "Admin@123")
+
 SESSION_TIME = 3600 
-
-# --- ADVERTISEMENT LINKS ---
 AD_CHANNEL_URL = os.getenv("AD_CHANNEL_URL", "https://t.me/YourChannel")
-AD_GROUP_URL = os.getenv("AD_GROUP_URL", "https://t.me/YourGroup")
-OWNER_USERNAME = os.getenv("OWNER_USERNAME", "YourUsername") # Bina @ ke
 
-# --- OTHER SETTINGS ---
-SHORTENER_API = os.getenv("SHORTENER_API") 
+AD_GROUP_URL = os.getenv("AD_GROUP_URL", "https://t.me/YourGroup")
+
+OWNER_USERNAME = os.getenv("OWNER_USERNAME", "RAMGARHIYA")
+
+SHORTENER_API = os.getenv("SHORTENER_API")
+
 DEMO_VIDEO_URL = "https://t.me/LKD_Movies/14"
+
 VERIFY_HOURS = 24
 
 IGNORE_TERMS = [
