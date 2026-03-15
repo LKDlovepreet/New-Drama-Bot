@@ -301,4 +301,37 @@ async def group_guard_logic(message: types.Message):
         if reply_obj:
             await message.reply(reply_obj.reply_text)
 
+# ====================================================
+# 🎛️ 5. BUTTON CLICK HANDLERS (Callback Queries)
+# ====================================================
+
+# 1. Manage Admins Button
+@router.callback_query(F.data == "b2_manage_admins")
+async def b2_admin_management(callback: types.CallbackQuery):
+    if callback.from_user.id != OWNER_ID:
+        await callback.answer("Only Daddy can do this! 🛑", show_alert=True)
+        return
+    
+    # Filhaal ke liye ye ek alert dikhayega
+    await callback.answer("⚙️ Admin Management Panel par kaam chal raha hai...", show_alert=True)
+
+# 2. Features Button (Welcome Message me)
+@router.callback_query(F.data == "show_features")
+async def show_features_cb(callback: types.CallbackQuery):
+    text = (
+        "✨ <b>Group Guard Features:</b>\n\n"
+        "🛡️ <b>Anti-Spam:</b> Unauthorized links turant delete honge.\n"
+        "🔇 <b>Anti-Flood:</b> Message spam karne par 1 ghante ka Mute.\n"
+        "⚠️ <b>Warning System:</b> 3 Warnings = 24h Mute, 4 Warnings = Global Ban.\n"
+        "🤖 <b>Auto-Replies:</b> Common words par instant reply."
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Back to Welcome", callback_data="back_welcome")]
+    ])
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception as e:
+        await callback.answer(f"Error: {e}")
+
+
     db.close()
