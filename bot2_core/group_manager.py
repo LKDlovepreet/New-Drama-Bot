@@ -9,7 +9,7 @@ from config.settings import OWNER_ID, ADMIN_IDS
 from database.db import get_db
 from database.models import BotUser, AutoReply, GroupSettings
 
-# Reporting Channel Env Se (Pehle check karein ki ye settings.py me ho)
+# Reporting Channel Env Se
 REPORTING_CHANNEL_ID = int(os.getenv("REPORTING_CHANNEL_ID", 0))
 
 router = Router()
@@ -23,8 +23,10 @@ flood_cache = {}
 async def log_report(bot: Bot, action: str, details: str):
     if REPORTING_CHANNEL_ID == 0: return
     log_msg = f"🚨 <b>Bot Activity Report</b>\n\n⚡ <b>Action:</b> {action}\n📄 <b>Details:</b> {details}\n🕒 <b>Time:</b> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
-    try: await bot.send_message(chat_id=REPORTING_CHANNEL_ID, text=log_msg, parse_mode="HTML")
-    except: pass
+    try: 
+        await bot.send_message(chat_id=REPORTING_CHANNEL_ID, text=log_msg, parse_mode="HTML")
+    except: 
+        pass
 
 # ====================================================
 # ⚠️ WARNING & BAN SYSTEM (Strike Logic)
@@ -34,7 +36,8 @@ async def apply_warning(user_id: int, user_name: str, chat_id: int, bot: Bot, re
     try:
         user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
         if not user:
-            user = BotUser(user_id=user_id); db.add(user)
+            user = BotUser(user_id=user_id)
+            db.add(user)
         
         user.warning_count += 1
         db.commit()
@@ -67,9 +70,11 @@ async def apply_warning(user_id: int, user_name: str, chat_id: int, bot: Bot, re
                 await bot.ban_chat_member(chat_id, user_id)
                 await bot.send_message(chat_id, f"⛔ <b>{user_name} has been GLOBALLY BANNED.</b> (4 Strikes)")
                 await log_report(bot, "GLOBAL BAN", f"User: {user_id} has been permanently banned from all bots.")
-            except: pass
+            except: 
+                pass
 
-    finally: db.close()
+    finally: 
+        db.close()
 
 
 # ====================================================
@@ -81,7 +86,7 @@ async def bot2_start_menu(message: types.Message):
     user = db.query(BotUser).filter(BotUser.user_id == message.from_user.id).first()
     db.close()
     
-    # Global Ban Check (Agar ban hai to koi reply nahi dena)
+    # Global Ban Check
     if user and user.is_global_banned:
         await log_report(message.bot, "Banned User Tried Start", f"User ID: {message.from_user.id}")
         return
@@ -98,21 +103,18 @@ async def bot2_start_menu(message: types.Message):
     elif uid in ADMIN_IDS:
         await message.answer("<b>ਓ ਕਿਵੇਂ ਆ ਸਿੰਘ 🤗</b>\n\nGroup Guard Active.")
     else:
-        # Normal User
-        bot_info = await message.bot.get_me()
         text = "<b>My Father's Contact:</b>\nContact the owner for help."
         kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="👤 Contact Owner", url="https://t.me/your_username_here")]])
         await message.answer(text, reply_markup=kb)
 
 
 # ====================================================
-# 🔄 2. AUTO-REPLY MANAGER (Add, Del, List)
+# 🔄 2. AUTO-REPLY MANAGER
 # ====================================================
 @router.message(Command("addreply"))
 async def add_reply(message: types.Message):
     if message.from_user.id not in ADMIN_IDS and message.from_user.id != OWNER_ID: return
     try:
-        # Format: /addreply keyword | reply text
         text = message.text.split(" ", 1)[1]
         keyword, reply = text.split("|", 1)
         keyword = keyword.strip().lower()
@@ -120,8 +122,10 @@ async def add_reply(message: types.Message):
         
         db = get_db()
         exist = db.query(AutoReply).filter(AutoReply.keyword == keyword).first()
-        if exist: exist.reply_text = reply
-        else: db.add(AutoReply(keyword=keyword, reply_text=reply))
+        if exist: 
+            exist.reply_text = reply
+        else: 
+            db.add(AutoReply(keyword=keyword, reply_text=reply))
         db.commit()
         db.close()
         
@@ -137,12 +141,14 @@ async def del_reply(message: types.Message):
         db = get_db()
         item = db.query(AutoReply).filter(AutoReply.keyword == keyword).first()
         if item:
-            db.delete(item); db.commit()
+            db.delete(item)
+            db.commit()
             await message.answer(f"🗑️ Reply deleted for `{keyword}`")
         else:
             await message.answer("⚠️ Keyword not found.")
         db.close()
-    except: await message.answer("❌ Use: `/delreply keyword`")
+    except: 
+        await message.answer("❌ Use: `/delreply keyword`")
 
 @router.message(Command("replies"))
 async def list_replies(message: types.Message):
@@ -167,8 +173,10 @@ async def list_replies(message: types.Message):
 @router.message(F.new_chat_members)
 async def welcome_new_member(message: types.Message):
     # 1. Delete Default "XYZ Joined" message
-    try: await message.delete()
-    except: pass
+    try: 
+        await message.delete()
+    except: 
+        pass
 
     # 2. Global Ban Check for new user
     db = get_db()
@@ -178,7 +186,8 @@ async def welcome_new_member(message: types.Message):
             try:
                 await message.bot.ban_chat_member(message.chat.id, new_user.id)
                 await log_report(message.bot, "Global Ban Prevented Entry", f"Banned User {new_user.id} tried to join {message.chat.title}.")
-            except: pass
+            except: 
+                pass
             continue
         
         # 3. Send Welcome Message
@@ -189,7 +198,6 @@ async def welcome_new_member(message: types.Message):
              InlineKeyboardButton(text="✨ Features", callback_data="show_features")]
         ])
         
-        # Auto delete welcome after 60 seconds (Optional, to keep group clean)
         sent_msg = await message.answer(text, reply_markup=kb)
         asyncio.create_task(delete_later(message.bot, message.chat.id, sent_msg.message_id, 60))
         
@@ -197,8 +205,10 @@ async def welcome_new_member(message: types.Message):
 
 async def delete_later(bot, chat_id, msg_id, seconds):
     await asyncio.sleep(seconds)
-    try: await bot.delete_message(chat_id, msg_id)
-    except: pass
+    try: 
+        await bot.delete_message(chat_id, msg_id)
+    except: 
+        pass
 
 @router.callback_query(F.data == "show_rules")
 async def show_rules_cb(callback: types.CallbackQuery):
@@ -232,17 +242,19 @@ async def group_guard_logic(message: types.Message):
     db = get_db()
     user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
     if user and user.is_global_banned:
-        try: await message.delete()
-        except: pass
+        try: 
+            await message.delete()
+        except: 
+            pass
         db.close()
-        return # Agar global banned hai, aage kuch mat karo
+        return
 
     # --- B. Bypass Owners & Admins ---
     if user_id == OWNER_ID or user_id in ADMIN_IDS:
-        # Admins ko auto-reply mil sakta hai
         if message.text:
             reply_obj = db.query(AutoReply).filter(AutoReply.keyword == message.text.lower().strip()).first()
-            if reply_obj: await message.reply(reply_obj.reply_text)
+            if reply_obj: 
+                await message.reply(reply_obj.reply_text)
         db.close()
         return
 
@@ -250,18 +262,20 @@ async def group_guard_logic(message: types.Message):
     now = time.time()
     if user_id not in flood_cache: flood_cache[user_id] = []
     flood_cache[user_id].append(now)
-    # Remove old timestamps (> 3 seconds)
     flood_cache[user_id] = [t for t in flood_cache[user_id] if now - t < 3]
     
     if len(flood_cache[user_id]) >= 5:
-        # User is flooding
-        try: await message.delete() except: pass
-        until = datetime.now() + timedelta(hours=1) # 1 Hour Mute
+        try: 
+            await message.delete() 
+        except: 
+            pass
+        until = datetime.now() + timedelta(hours=1)
         try:
             await message.bot.restrict_chat_member(chat_id, user_id, permissions=ChatPermissions(can_send_messages=False), until_date=until)
             await message.answer(f"⏳ <b>Anti-Flood System Triggered!</b>\n{message.from_user.first_name} muted for 1 Hour for spamming.")
             await log_report(message.bot, "Anti-Flood Mute (1h)", f"User {user_id} spammed in {message.chat.title}.")
-        except Exception as e: print(f"Flood Mute Error: {e}")
+        except Exception as e: 
+            print(f"Flood Mute Error: {e}")
         db.close()
         return
 
@@ -269,10 +283,14 @@ async def group_guard_logic(message: types.Message):
     has_link = False
     if message.entities:
         for ent in message.entities:
-            if ent.type in ["url", "text_link"]: has_link = True
+            if ent.type in ["url", "text_link"]: 
+                has_link = True
     
     if has_link:
-        try: await message.delete() except: pass
+        try: 
+            await message.delete() 
+        except: 
+            pass
         await apply_warning(user_id, message.from_user.first_name, chat_id, message.bot, "Sending unauthorized links.")
         db.close()
         return
