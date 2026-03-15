@@ -28,6 +28,8 @@ AD_GROUP_URL = os.getenv("AD_GROUP_URL", "https://t.me/YourGroup")
 
 OWNER_USERNAME = os.getenv("OWNER_USERNAME", "RAMGARHIYA")
 
+REPORTING_CHANNEL_ID = int(os.getenv("REPORTING_CHANNEL_ID", 0))
+
 SHORTENER_API = os.getenv("SHORTENER_API")
 
 DEMO_VIDEO_URL = "https://t.me/LKD_Movies/14"
