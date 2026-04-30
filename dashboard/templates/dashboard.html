@@ -3,43 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot Dashboard</title>
+    <title>RAMGARHIA Services - Control Panel</title>
     <link rel="stylesheet" href="/static/style.css">
     <script>
     async function loadData(page) {
-        document.getElementById('main-view').innerHTML = '<div class="loader">Loading Data...</div>';
-        document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+        document.getElementById('main-content').innerHTML = '<div class="loader">Loading Data...</div>';
+        document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-'+page).classList.add('active');
 
         try {
             const res = await fetch('/api/' + page);
             const html = await res.text();
-            document.getElementById('main-view').innerHTML = html;
+            document.getElementById('main-content').innerHTML = html;
         } catch(e) {
-            document.getElementById('main-view').innerHTML = '<p class="error-msg">Failed to load data.</p>';
+            document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>';
         }
     }
     </script>
 </head>
-<body class="dashboard-body" onload="loadData('status')">
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <h2>🤖 Guard Panel</h2>
-            <p>System v2.0</p>
+<body onload="loadData('status')">
+    
+    <header class="top-navbar">
+        <div class="logo">
+            <h2>👑 RAMGARHIA Services</h2>
         </div>
-        <nav class="sidebar-nav">
-            <button id="btn-status" onclick="loadData('status')">📊 Status & Traffic</button>
-            <button id="btn-users" onclick="loadData('users')">👥 User Directory</button>
-            <button id="btn-files" onclick="loadData('files')">📂 File Storage</button>
-            <button id="btn-admins" onclick="loadData('admins')">👮 Admin Controls</button>
-        </nav>
-        <div class="sidebar-footer">
-            <form action="/logout" method="post">
-                <button class="logout-btn" type="submit">🚪 Logout</button>
-            </form>
+        <div class="profile-section">
+            <button class="profile-btn">👤 Owner Profile</button>
         </div>
-    </aside>
-    <main class="content" id="main-view">
-        </main>
+    </header>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <button id="btn-status" onclick="loadData('status')">📊 Dashboard Overview</button>
+                <button id="btn-users" onclick="loadData('users')">👥 Manage Users</button>
+                <button id="btn-files" onclick="loadData('files')">📂 Manage Files</button>
+                <button id="btn-admins" onclick="loadData('admins')">👮 Manage Admins</button>
+            </nav>
+            <div class="sidebar-footer">
+                <form action="/logout" method="post">
+                    <button class="logout-btn" type="submit">🚪 Logout</button>
+                </form>
+            </div>
+        </aside>
+
+        <main class="content" id="main-content">
+            </main>
+    </div>
+
 </body>
 </html>
