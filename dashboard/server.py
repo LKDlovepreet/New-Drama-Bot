@@ -94,12 +94,10 @@ DASHBOARD_HTML = """
 """
 
 # --- HANDLERS ---
-async def login_page(request):
-    return web.Response(text=LOGIN_HTML.format(error=""), content_type='text/html')
-
 async def login_post(request):
     data = await request.post()
-    password = data.get('password')
+    password = data.get('passkey')  # 👈 Yahan 'password' ki jagah 'passkey' aayega
+    
     if password == DASHBOARD_PASSWORD:
         await send_otp_to_owner()
         session = await get_session(request)
@@ -107,6 +105,7 @@ async def login_post(request):
         raise web.HTTPFound('/verify')
     else:
         return web.Response(text=LOGIN_HTML.format(error="❌ Wrong Password!"), content_type='text/html')
+
 
 async def verify_page(request):
     session = await get_session(request)
