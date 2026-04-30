@@ -1,11 +1,11 @@
 import os
 import time
 import base64
+import hashlib
 from aiohttp import web
 import aiohttp_session
 from aiohttp_session import setup, get_session
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
-from cryptography import fernet
 
 from config.settings import DASHBOARD_PASSWORD, SESSION_TIME
 from database.db import SessionLocal
@@ -14,20 +14,22 @@ from .otp_service import send_otp_to_owner, verify_otp
 
 # --- TEMPLATE RENDERER ---
 def render_template(filename, **kwargs):
-    # Templates folder se html file read karega
     filepath = os.path.join("dashboard", "templates", filename)
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
     
-    # 👇 FIX: .format() ki jagah safe .replace() method
     for key, value in kwargs.items():
         content = content.replace(f"{{{key}}}", str(value))
         
     return content
 
-
 # --- HANDLERS ---
 async def login_page(request):
+    session = await get_session(request)
+    # Agar pehle se login hai, to wapas dashboard bhejo
+    if session.get('authenticated'):
+        return web.HTTPFound('/')
+        
     html = render_template("login.html", error="")
     return web.Response(text=html, content_type='text/html')
 
@@ -39,20 +41,25 @@ async def login_post(request):
         await send_otp_to_owner()
         session = await get_session(request)
         session['pre_auth'] = True
-        raise web.HTTPFound('/verify')
+        return web.HTTPFound('/verify') # FIX: raise ki jagah return
     else:
         html = render_template("login.html", error="❌ Wrong Password!")
         return web.Response(text=html, content_type='text/html')
 
 async def verify_page(request):
     session = await get_session(request)
-    if not session.get('pre_auth'): raise web.HTTPFound('/login')
+    if session.get('authenticated'):
+        return web.HTTPFound('/')
+    if not session.get('pre_auth'): 
+        return web.HTTPFound('/login')
+        
     html = render_template("verify.html", error="")
     return web.Response(text=html, content_type='text/html')
 
 async def verify_post(request):
     session = await get_session(request)
-    if not session.get('pre_auth'): raise web.HTTPFound('/login')
+    if not session.get('pre_auth'): 
+        return web.HTTPFound('/login')
     
     data = await request.post()
     success, msg = verify_otp(data.get('otp'))
@@ -61,21 +68,21 @@ async def verify_post(request):
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        raise web.HTTPFound('/')
+        return web.HTTPFound('/') # FIX: raise ki jagah return
     else:
         html = render_template("verify.html", error=msg)
         return web.Response(text=html, content_type='text/html')
 
 async def logout(request):
     session = await get_session(request)
-    session.clear()
-    raise web.HTTPFound('/login')
+    session.invalidate() # FIX: Session properly kill
+    return web.HTTPFound('/login')
 
 async def dashboard(request):
     session = await get_session(request)
     if not session.get('authenticated') or (time.time() - session.get('login_time', 0) > SESSION_TIME):
-        session.clear()
-        raise web.HTTPFound('/login')
+        session.invalidate()
+        return web.HTTPFound('/login')
     
     html = render_template("dashboard.html", error="")
     resp = web.Response(text=html, content_type='text/html')
@@ -91,12 +98,11 @@ async def api_handler(request):
     db = SessionLocal()
     html = ""
     try:
-                if page == 'status':
+        if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
             
-            # 👇 Yahan se HTML ka naya design start hota hai
             html = f"""
             <div class="header-title">
                 <h1>Dashboard Overview</h1>
@@ -136,7 +142,6 @@ async def api_handler(request):
                 </div>
             </div>
             """
-
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
             rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for u in users])
@@ -158,8 +163,12 @@ async def api_handler(request):
 async def start_dashboard_server():
     app = web.Application()
     
-    fernet_key = fernet.Fernet.generate_key()
-    setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(fernet_key)))
+    # 👇 FIX: Permanent Fernet Key (Password se banayi gayi)
+    secret_hash = hashlib.sha256(DASHBOARD_PASSWORD.encode()).digest()
+    secret_key = base64.urlsafe_b64encode(secret_hash)
+    
+    # FIX: max_age=SESSION_TIME lagaya gaya taaki browser cookie yaad rakhe
+    setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(secret_key), max_age=SESSION_TIME))
 
     app.router.add_static('/static/', path='dashboard/static', name='static')
 
