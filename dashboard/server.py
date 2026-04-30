@@ -18,7 +18,13 @@ def render_template(filename, **kwargs):
     filepath = os.path.join("dashboard", "templates", filename)
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    return content.format(**kwargs)
+    
+    # 👇 FIX: .format() ki jagah safe .replace() method
+    for key, value in kwargs.items():
+        content = content.replace(f"{{{key}}}", str(value))
+        
+    return content
+
 
 # --- HANDLERS ---
 async def login_page(request):
