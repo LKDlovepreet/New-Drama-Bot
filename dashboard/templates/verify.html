@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA Verify - Guard Bot</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <h2>📲 2FA Verification</h2>
+                <p>OTP sent to your Telegram</p>
+            </div>
+            <form action="/verify" method="post">
+                <div class="input-group">
+                    <input type="text" name="otp" placeholder="Enter 6-digit OTP" required maxlength="6" autocomplete="off">
+                </div>
+                <button type="submit" class="btn-success">Verify & Login 🔓</button>
+            </form>
+            <p class="error-msg">{error}</p>
+        </div>
+    </div>
+</body>
+</html>
