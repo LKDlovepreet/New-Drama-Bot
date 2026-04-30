@@ -94,9 +94,13 @@ DASHBOARD_HTML = """
 """
 
 # --- HANDLERS ---
+async def login_page(request):
+    return web.Response(text=LOGIN_HTML.format(error=""), content_type='text/html')
+
 async def login_post(request):
     data = await request.post()
-    password = data.get('passkey')  # 👈 Yahan 'password' ki jagah 'passkey' aayega
+    # 👇 Yahan password ka input name "passkey" fix kiya gaya hai
+    password = data.get('passkey') 
     
     if password == DASHBOARD_PASSWORD:
         await send_otp_to_owner()
@@ -105,7 +109,6 @@ async def login_post(request):
         raise web.HTTPFound('/verify')
     else:
         return web.Response(text=LOGIN_HTML.format(error="❌ Wrong Password!"), content_type='text/html')
-
 
 async def verify_page(request):
     session = await get_session(request)
@@ -138,7 +141,7 @@ async def dashboard(request):
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
-# --- API HANDLERS (Same Logic, Updated HTML Structure for API responses) ---
+# --- API HANDLERS ---
 async def api_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
@@ -187,8 +190,7 @@ async def start_dashboard_server():
     fernet_key = fernet.Fernet.generate_key()
     setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(fernet_key)))
 
-    # 👇 STATIC FILES ROUTE (Bahut Zaroori)
-    # Ye batata hai ki "/static" URL par "dashboard/static" folder dikhana hai
+    # STATIC FILES ROUTE
     app.router.add_static('/static/', path='dashboard/static', name='static')
 
     app.router.add_get('/login', login_page)
