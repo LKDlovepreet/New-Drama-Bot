@@ -91,23 +91,52 @@ async def api_handler(request):
     db = SessionLocal()
     html = ""
     try:
-        if page == 'status':
+                if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
+            
+            # 👇 Yahan se HTML ka naya design start hota hai
             html = f"""
-            <h1>System Overview</h1>
-            <div class="stats-grid">
-                <div class="card"><h3>Total Users</h3><h1>{u}</h1></div>
-                <div class="card"><h3>Files Indexed</h3><h1>{f}</h1></div>
-                <div class="card"><h3>Active Channels</h3><h1>{c}</h1></div>
+            <div class="header-title">
+                <h1>Dashboard Overview</h1>
+                <p>Welcome to RAMGARHIA Services Control Panel</p>
             </div>
-            <div class="card" style="margin-top:20px;">
-                <h3>Network Status</h3>
-                <p style="color:var(--success); font-weight:bold; margin-top:10px;">🟢 All Systems Operational</p>
-                <p style="margin-top:5px; color:var(--text-muted)">Dashboard Security: <span style="color:var(--accent)">Active (2FA)</span></p>
+            
+            <div class="stats-grid">
+                <div class="card">
+                    <h3>👥 Total Users</h3>
+                    <h1>{u}</h1>
+                    <p style="color:var(--success); font-size:12px; margin-top:8px;">+ Active Directory</p>
+                </div>
+                <div class="card">
+                    <h3>📂 Files Indexed</h3>
+                    <h1>{f}</h1>
+                    <p style="color:var(--accent); font-size:12px; margin-top:8px;">+ Secure Storage</p>
+                </div>
+                <div class="card">
+                    <h3>📢 Active Channels</h3>
+                    <h1>{c}</h1>
+                    <p style="color:var(--success); font-size:12px; margin-top:8px;">+ Broadcast Ready</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="card">
+                    <h3>🤖 Bot 1 (Link Manager)</h3>
+                    <p style="color:var(--success); font-weight:bold; margin-top:15px; font-size: 20px;">🟢 Online & Running</p>
+                </div>
+                <div class="card">
+                    <h3>🛡️ Bot 2 (Group Guard)</h3>
+                    <p style="color:var(--success); font-weight:bold; margin-top:15px; font-size: 20px;">🟢 Online & Running</p>
+                </div>
+                <div class="card">
+                    <h3>🔐 System Security</h3>
+                    <p style="color:var(--accent); font-weight:bold; margin-top:15px; font-size: 20px;">🛡️ 2FA Active</p>
+                </div>
             </div>
             """
+
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
             rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for u in users])
