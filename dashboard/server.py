@@ -9,6 +9,7 @@ from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from config.settings import DASHBOARD_PASSWORD, SESSION_TIME
 from database.db import SessionLocal
+from sqlalchemy import String
 from database.models import BotUser, FileRecord, Channel
 from .otp_service import send_otp_to_owner, verify_otp
 
