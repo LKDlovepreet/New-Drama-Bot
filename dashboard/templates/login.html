@@ -3,23 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Login - Guard Bot</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Login - RAMGARHIA Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=3.0">
 </head>
 <body class="auth-body">
     <div class="auth-container">
         <div class="auth-box">
             <div class="auth-header">
-                <h2>🛡️ Owner Access</h2>
-                <p>Secure System Panel</p>
+                <h2 style="font-family: 'Newsreader', serif; color: var(--bg-header);">RAMGARHIA Services</h2>
+                <p>Enter Master Password to Access Panel</p>
             </div>
             <form action="/login" method="post">
                 <div class="input-group">
-                    <input type="password" name="passkey" placeholder="Enter Master Password" required>
+                    <input type="password" name="passkey" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn-primary">Proceed Securely ➡️</button>
+                <button type="submit" class="btn-primary">Secure Login ➡️</button>
             </form>
             <p class="error-msg">{error}</p>
+            <a href="/" class="back-link">← Back to Home</a>
         </div>
     </div>
 </body>
