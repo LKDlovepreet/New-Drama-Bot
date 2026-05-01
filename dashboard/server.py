@@ -98,50 +98,53 @@ async def api_handler(request):
     db = SessionLocal()
     html = ""
     try:
-        if page == 'status':
+                if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
             
             html = f"""
-            <div class="header-title">
-                <h1>Dashboard Overview</h1>
-                <p>Welcome to RAMGARHIA Services Control Panel</p>
+            <div class="welcome-msg">
+                <h1>Welcome back, Boss! 👋</h1>
+                <p>Here is the live status of your automated systems.</p>
             </div>
             
-            <div class="stats-grid">
-                <div class="card">
-                    <h3>👥 Total Users</h3>
-                    <h1>{u}</h1>
-                    <p style="color:var(--success); font-size:12px; margin-top:8px;">+ Active Directory</p>
-                </div>
-                <div class="card">
-                    <h3>📂 Files Indexed</h3>
-                    <h1>{f}</h1>
-                    <p style="color:var(--accent); font-size:12px; margin-top:8px;">+ Secure Storage</p>
-                </div>
-                <div class="card">
-                    <h3>📢 Active Channels</h3>
-                    <h1>{c}</h1>
-                    <p style="color:var(--success); font-size:12px; margin-top:8px;">+ Broadcast Ready</p>
-                </div>
-            </div>
+            <div class="bot-cards-grid">
+                <a href="#bot1_details" class="bot-card">
+                    <div class="card-header">
+                        <h3>Link Manager Bot</h3>
+                        <span class="live-dot"></span>
+                    </div>
+                    <div class="card-body">
+                        <p>Handling Deep Linking, File Storage & User Broadcasting automatically.</p>
+                        <div class="bot-stats">📁 Indexed Files: {f}</div>
+                    </div>
+                </a>
 
-            <div class="stats-grid">
-                <div class="card">
-                    <h3>🤖 Bot 1 (Link Manager)</h3>
-                    <p style="color:var(--success); font-weight:bold; margin-top:15px; font-size: 20px;">🟢 Online & Running</p>
-                </div>
-                <div class="card">
-                    <h3>🛡️ Bot 2 (Group Guard)</h3>
-                    <p style="color:var(--success); font-weight:bold; margin-top:15px; font-size: 20px;">🟢 Online & Running</p>
-                </div>
-                <div class="card">
-                    <h3>🔐 System Security</h3>
-                    <p style="color:var(--accent); font-weight:bold; margin-top:15px; font-size: 20px;">🛡️ 2FA Active</p>
-                </div>
+                <a href="#bot2_details" class="bot-card">
+                    <div class="card-header">
+                        <h3>Group Guard Bot</h3>
+                        <span class="live-dot"></span>
+                    </div>
+                    <div class="card-body">
+                        <p>Managing Security, Auto-replies, Anti-Spam & Warning Systems.</p>
+                        <div class="bot-stats">👥 Active Users: {u}</div>
+                    </div>
+                </a>
+                
+                <a href="#security_details" class="bot-card" style="border-color: rgba(59, 130, 246, 0.4);">
+                    <div class="card-header">
+                        <h3 style="color: var(--accent);">System API Security</h3>
+                        <span class="live-dot" style="background: var(--accent); box-shadow: 0 0 10px var(--accent);"></span>
+                    </div>
+                    <div class="card-body">
+                        <p>Core Database, Security Logs & 2FA Authentication Engine.</p>
+                        <div class="bot-stats" style="color: var(--success); background: rgba(16, 185, 129, 0.1);">🛡️ Protected</div>
+                    </div>
+                </a>
             </div>
             """
+
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
             rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for u in users])
