@@ -2,6 +2,10 @@ import os
 from aiogram import Router, F, types
 from aiogram.filters import CommandStart, Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from dashboard.otp_service import generate_otp, OTP_STORE
+from database.db import SessionLocal
+from database.models import BotUser
+import time
 
 from config.settings import OWNER_ID
 from database.db import get_db
@@ -9,6 +13,27 @@ from database.models import BotUser, FileRecord
 
 router = Router()
 
+@dp.message_handler(commands=['start'])
+async def start_cmd(message: types.Message):
+    args = message.get_args() # 'start=' ke aage ka text nikalta hai
+    
+    # Agar user website se OTP lene aaya hai
+    if args == 'getotp':
+        user_id = message.from_user.id
+        db = SessionLocal()
+        user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
+        db.close()
+        
+        if user:
+            otp = generate_otp()
+            OTP_STORE[str(user_id)] = {'otp': otp, 'time': time.time()}
+            await message.reply(f"📲 <b>Your Login OTP:</b> <code>{otp}</code>\n\nValid for 5 minutes. Enter this on the website to verify your account.", parse_mode="HTML")
+        else:
+            await message.reply("❌ Your account was not found. Please fill the Sign Up form on the website first.")
+        return
+        
+    # Yahan aapke purane /start command ka code aayega...
+    await message.reply("Welcome to RAMGARHIA Services Bot!")
 # ====================================================
 # 1. OTP SYSTEM (Purana kaam jo ye bot karta tha)
 # ====================================================
