@@ -20,72 +20,84 @@ def render_template(filename, **kwargs):
         content = content.replace(f"{{{key}}}", str(value))
     return content
 
-# 🌐 1. Landing Page Handler
 async def landing_page(request):
     html = render_template("landing.html")
     return web.Response(text=html, content_type='text/html')
 
-# 🔐 2. Auth Handlers
 async def login_page(request):
     session = await get_session(request)
-    if session.get('authenticated'):
-        return web.HTTPFound('/dashboard')
+    if session.get('authenticated'): return web.HTTPFound('/dashboard')
     html = render_template("login.html", error="")
     return web.Response(text=html, content_type='text/html')
 
 async def login_post(request):
     data = await request.post()
-    password = data.get('passkey') 
-    if password == DASHBOARD_PASSWORD:
+    if data.get('passkey') == DASHBOARD_PASSWORD:
         await send_otp_to_owner()
         session = await get_session(request)
         session['pre_auth'] = True
         return web.HTTPFound('/verify')
     else:
-        html = render_template("login.html", error="❌ Wrong Password!")
-        return web.Response(text=html, content_type='text/html')
+        return web.Response(text=render_template("login.html", error="❌ Wrong Password!"), content_type='text/html')
 
 async def verify_page(request):
     session = await get_session(request)
-    if session.get('authenticated'):
-        return web.HTTPFound('/dashboard')
-    if not session.get('pre_auth'): 
-        return web.HTTPFound('/login')
-    html = render_template("verify.html", error="")
-    return web.Response(text=html, content_type='text/html')
+    if session.get('authenticated'): return web.HTTPFound('/dashboard')
+    if not session.get('pre_auth'): return web.HTTPFound('/login')
+    return web.Response(text=render_template("verify.html", error=""), content_type='text/html')
 
 async def verify_post(request):
     session = await get_session(request)
-    if not session.get('pre_auth'): 
-        return web.HTTPFound('/login')
+    if not session.get('pre_auth'): return web.HTTPFound('/login')
     data = await request.post()
     success, msg = verify_otp(data.get('otp'))
     if success:
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        return web.HTTPFound('/dashboard') # Login success hone par Dashboard bhejo
+        return web.HTTPFound('/dashboard')
     else:
-        html = render_template("verify.html", error=msg)
-        return web.Response(text=html, content_type='text/html')
+        return web.Response(text=render_template("verify.html", error=msg), content_type='text/html')
 
 async def logout(request):
     session = await get_session(request)
     session.invalidate()
-    return web.HTTPFound('/') # Logout hokar landing page par aayega
+    return web.HTTPFound('/')
 
-# 🎛️ 3. Main Dashboard Handler
 async def dashboard_page(request):
     session = await get_session(request)
     if not session.get('authenticated') or (time.time() - session.get('login_time', 0) > SESSION_TIME):
         session.invalidate()
         return web.HTTPFound('/login')
-    html = render_template("dashboard.html", error="")
-    resp = web.Response(text=html, content_type='text/html')
+    resp = web.Response(text=render_template("dashboard.html", error=""), content_type='text/html')
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
-# ⚙️ 4. API Handlers
+async def action_handler(request):
+    session = await get_session(request)
+    if not session.get('authenticated'): return web.json_response({"success": False, "message": "Unauthorized"})
+    
+    data = await request.json()
+    action, target_id = data.get('action'), data.get('id')
+    db = SessionLocal()
+    try:
+        if action == 'make_admin':
+            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if user: user.is_admin, user.role = True, 'admin'
+        elif action == 'remove_admin':
+            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if user: user.is_admin, user.role = False, 'user'
+        elif action == 'ban_user':
+            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if user: user.is_global_banned = True
+        elif action == 'delete_file':
+            file = db.query(FileRecord).filter(FileRecord.id == target_id).first()
+            if file: db.delete(file)
+        db.commit()
+        return web.json_response({"success": True})
+    except Exception as e: return web.json_response({"success": False, "message": str(e)})
+    finally: db.close()
+
 async def api_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
@@ -95,60 +107,41 @@ async def api_handler(request):
     html = ""
     try:
         if page == 'status':
-            u = db.query(BotUser).count()
-            f = db.query(FileRecord).count()
-            c = db.query(Channel).count()
-            html = f"""
-            <div class="welcome-msg">
-                <h1>Welcome back, Boss! 👋</h1>
-                <p>System is running smoothly. Here is your live overview.</p>
-            </div>
+            u, f, c = db.query(BotUser).count(), db.query(FileRecord).count(), db.query(Channel).count()
+            html = f"""<div class="welcome-msg"><h1>Welcome back, Boss! 👋</h1><p>System is running smoothly.</p></div>
             <div class="bot-cards-grid">
-                <a href="#bot1_details" class="bot-card">
-                    <div class="card-header"><h3>Link Manager Bot</h3><span class="live-dot"></span></div>
-                    <div class="card-body"><p>Handling Deep Linking, File Storage & User Broadcasting automatically.</p><div class="bot-stats">📁 Indexed Files: {f}</div></div>
-                </a>
-                <a href="#bot2_details" class="bot-card">
-                    <div class="card-header"><h3>Group Guard Bot</h3><span class="live-dot"></span></div>
-                    <div class="card-body"><p>Managing Security, Auto-replies, Anti-Spam & Warning Systems.</p><div class="bot-stats">👥 Active Users: {u}</div></div>
-                </a>
-                <a href="#security_details" class="bot-card">
-                    <div class="card-header"><h3>System API Security</h3><span class="live-dot" style="background: var(--bg-sidebar); animation: none; box-shadow: none;"></span></div>
-                    <div class="card-body"><p>Core Database, Security Logs & 2FA Authentication Engine.</p><div class="bot-stats">🛡️ 2FA Protected</div></div>
-                </a>
-            </div>
-            """
+                <a href="#bot1" class="bot-card"><div class="card-header"><h3>Link Manager Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Handling Deep Linking & File Storage.</p><div class="bot-stats">📁 Indexed Files: {f}</div></div></a>
+                <a href="#bot2" class="bot-card"><div class="card-header"><h3>Group Guard Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Managing Security & Auto-replies.</p><div class="bot-stats">👥 Active Users: {u}</div></div></a>
+            </div>"""
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td><code>{user.user_id}</code></td><td>{user.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for user in users])
-            html = f"<h1>Latest Users</h1><table><tr><th>User ID</th><th>Joined Date</th></tr>{rows}</table>"
+            rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d')}</td><td><button class='action-btn' style='background:var(--success);' onclick='performAction(\"make_admin\", {u.user_id})'>Make Admin</button><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"ban_user\", {u.user_id})'>Ban</button></td></tr>" for u in users])
+            html = f"<h1>Manage Users</h1><table><tr><th>User ID</th><th>Joined Date</th><th>Actions</th></tr>{rows}</table>"
         elif page == 'files':
             files = db.query(FileRecord).order_by(FileRecord.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td>{file.file_name}</td><td><span style='background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;'>{file.file_type}</span></td></tr>" for file in files])
-            html = f"<h1>Recent Files</h1><table><tr><th>File Name</th><th>Type</th></tr>{rows}</table>"
+            rows = "".join([f"<tr><td>{f.file_name}</td><td>{f.file_type}</td><td><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"delete_file\", {f.id})'>Delete</button></td></tr>" for f in files])
+            html = f"<h1>Manage Files</h1><table><tr><th>File Name</th><th>Type</th><th>Actions</th></tr>{rows}</table>"
         elif page == 'admins':
             admins = db.query(BotUser).filter(BotUser.is_admin == True).all()
-            rows = "".join([f"<tr><td><code>{admin.user_id}</code></td><td><span style='color:var(--success)'>Super Admin</span></td></tr>" for admin in admins])
-            html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th></tr>{rows}</table>"
-    finally:
-        db.close()
+            rows = "".join([f"<tr><td><code>{a.user_id}</code></td><td>Admin</td><td><button class='action-btn' style='background:var(--accent);' onclick='performAction(\"remove_admin\", {a.user_id})'>Remove</button></td></tr>" for a in admins])
+            html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th><th>Actions</th></tr>{rows}</table>"
+    finally: db.close()
     return web.Response(text=html, content_type='text/html')
 
 async def start_dashboard_server():
     app = web.Application()
-    secret_hash = hashlib.sha256(DASHBOARD_PASSWORD.encode()).digest()
-    secret_key = base64.urlsafe_b64encode(secret_hash)
+    secret_key = base64.urlsafe_b64encode(hashlib.sha256(DASHBOARD_PASSWORD.encode()).digest())
     setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(secret_key), max_age=SESSION_TIME))
 
     app.router.add_static('/static/', path='dashboard/static', name='static')
-
-    app.router.add_get('/', landing_page)          # Naya Landing Page Route
+    app.router.add_get('/', landing_page)
     app.router.add_get('/login', login_page)
     app.router.add_post('/login', login_post)
     app.router.add_get('/verify', verify_page)
     app.router.add_post('/verify', verify_post)
     app.router.add_post('/logout', logout)
-    app.router.add_get('/dashboard', dashboard_page) # Dashboard ab /dashboard par hai
+    app.router.add_get('/dashboard', dashboard_page)
+    app.router.add_post('/api/action', action_handler)
     app.router.add_get('/api/{page}', api_handler)
 
     port = int(os.environ.get("PORT", 8000))
