@@ -40,6 +40,56 @@ async def login_post(request):
     else:
         return web.Response(text=render_template("login.html", error="❌ Wrong Password!"), content_type='text/html')
 
+async def signup_page(request):
+    html = render_template("signup.html", error="")
+    return web.Response(text=html, content_type='text/html')
+
+async def signup_post(request):
+    data = await request.post()
+    
+    full_name = data.get('full_name')
+    dob = data.get('dob')
+    telegram_id = data.get('telegram_id') # Ye Username ya ID dono ho sakta hai
+    passkey = data.get('passkey')
+    email = data.get('email')
+    mobile = data.get('mobile_number')
+    profile_pic = data.get('profile_pic_url')
+    
+    db = SessionLocal()
+    try:
+        # Password ko super secure banakar hash karna
+        hashed_password = hashlib.sha256(passkey.encode()).hexdigest()
+        
+        # User create karna
+        new_user = BotUser(
+            web_username=telegram_id, # Telegram ID ko hi login username bana diya
+            web_password=hashed_password,
+            role='customer', # By default har naya user customer hoga
+            full_name=full_name,
+            dob=dob,
+            email=email,
+            mobile_number=mobile,
+            profile_pic_url=profile_pic
+        )
+        db.add(new_user)
+        db.commit()
+        
+        # Signup ke baad OTP verification ke liye bhejna
+        session = await get_session(request)
+        session['pre_auth'] = True
+        session['temp_telegram_id'] = telegram_id
+        
+        # TODO: Yahan par bot us user ko OTP bhejega (Bot Integration next step me karenge)
+        
+        return web.HTTPFound('/verify')
+        
+    except Exception as e:
+        db.rollback()
+        html = render_template("signup.html", error="❌ Username/ID already exists or Database Error!")
+        return web.Response(text=html, content_type='text/html')
+    finally:
+        db.close()
+
 async def verify_page(request):
     session = await get_session(request)
     if session.get('authenticated'): return web.HTTPFound('/dashboard')
