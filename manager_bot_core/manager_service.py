@@ -1,23 +1,21 @@
 import os
-from aiogram import Router, F, types
-from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from dashboard.otp_service import generate_otp, OTP_STORE
-from database.db import SessionLocal
-from database.models import BotUser
 import time
+from aiogram import Router, F, types
+from aiogram.filters import CommandStart, CommandObject
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from config.settings import OWNER_ID
-from database.db import get_db
+from dashboard.otp_service import generate_otp, OTP_STORE
+from database.db import SessionLocal, get_db
 from database.models import BotUser, FileRecord
 
 router = Router()
 
-@dp.message_handler(commands=['start'])
-async def start_cmd(message: types.Message):
-    args = message.get_args() # 'start=' ke aage ka text nikalta hai
+@router.message(CommandStart(), F.chat.type == "private")
+async def manager_start_cmd(message: types.Message, command: CommandObject):
+    args = command.args 
     
-    # Agar user website se OTP lene aaya hai
+    # 🟢 1. Agar user website se OTP lene aaya hai
     if args == 'getotp':
         user_id = message.from_user.id
         db = SessionLocal()
@@ -32,23 +30,7 @@ async def start_cmd(message: types.Message):
             await message.reply("❌ Your account was not found. Please fill the Sign Up form on the website first.")
         return
         
-    # Yahan aapke purane /start command ka code aayega...
-    await message.reply("Welcome to RAMGARHIA Services Bot!")
-# ====================================================
-# 1. OTP SYSTEM (Purana kaam jo ye bot karta tha)
-# ====================================================
-# (Yahan aapka purana OTP verification wala logic aayega)
-# Example placeholder:
-@router.message(Command("getotp"))
-async def send_otp_logic(message: types.Message):
-    await message.answer("🔐 Aapka OTP: 123456 (Dashboard login ke liye)")
-
-# ====================================================
-# 2. MANAGER SYSTEM (Naya Dashboard Features)
-# ====================================================
-@router.message(CommandStart(), F.chat.type == "private")
-async def manager_start(message: types.Message):
-    # Manager Bot sirf aapko (Owner) ko control dega
+    # 👑 2. Manager Bot sirf aapko (Owner) ko control dega
     if message.from_user.id != OWNER_ID:
         await message.answer("⚠️ Yeh ek private Manager Bot hai. Access Denied.")
         return
@@ -60,8 +42,7 @@ async def manager_start(message: types.Message):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Quick Stats", callback_data="mgr_quick_stats")],
-        [InlineKeyboardButton(text="💻 Open Web Dashboard", url="https://aapka-web-url.com")], # Baad me set karenge
-        [InlineKeyboardButton(text="🔑 Generate Login OTP", callback_data="mgr_gen_otp")]
+        [InlineKeyboardButton(text="💻 Open Web Dashboard", url="https://aapka-web-url.com")], 
     ])
     
     await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
@@ -72,7 +53,6 @@ async def show_quick_stats(callback: types.CallbackQuery):
     
     db = get_db()
     try:
-        # Live data fetch kar rahe hain
         total_users = db.query(BotUser).count()
         total_files = db.query(FileRecord).count()
         banned_users = db.query(BotUser).filter(BotUser.is_global_banned == True).count()
@@ -89,6 +69,7 @@ async def show_quick_stats(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "mgr_back")
 async def mgr_back_home(callback: types.CallbackQuery):
-    # Wapas start menu dikhane ke liye
-    await manager_start(callback.message)
+    # Dummy command object banakar wapas menu show karna
+    dummy_cmd = type('CommandObject', (), {'args': None})()
+    await manager_start_cmd(callback.message, dummy_cmd)
     await callback.message.delete()
