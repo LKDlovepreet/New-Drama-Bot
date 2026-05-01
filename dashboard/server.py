@@ -93,48 +93,57 @@ async def signup_page(request):
     return web.Response(text=html, content_type='text/html')
 
 async def signup_post(request):
+    # Enctype multipart/form-data hone ke kaaran post() se data lenge
     data = await request.post()
     
-    full_name = data.get('full_name')
-    dob = data.get('dob')
-    telegram_id = data.get('telegram_id') # Ye Username ya ID dono ho sakta hai
-    passkey = data.get('passkey')
-    email = data.get('email')
-    mobile = data.get('mobile_number')
-    profile_pic = data.get('profile_pic_url')
+    full_name, dob, telegram_id = data.get('full_name'), data.get('dob'), data.get('telegram_id')
+    passkey, email, mobile = data.get('passkey'), data.get('email'), data.get('mobile_number')
     
+    profile_pic_url = "https://i.pinimg.com/736x/8f/33/2d/8f332dd34b6e5114705bd364741db457.jpg" # Default Oggy
+    
+    # --- Backend Cloudinary Upload System ---
+    profile_pic_file = data.get('profile_pic')
+    if profile_pic_file and profile_pic_file.filename:
+        try:
+            # File ko read karna aur Cloudinary par bhejna
+            url = "https://api.cloudinary.com/v1_1/dordvtopl/image/upload"
+            form_data = aiohttp.FormData()
+            form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
+            form_data.add_field('upload_preset', 'Profile_pictures')
+            
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, data=form_data) as resp:
+                    res_json = await resp.json()
+                    if 'secure_url' in res_json:
+                        profile_pic_url = res_json['secure_url']
+        except Exception as e:
+            print("Cloudinary Upload Error:", str(e))
+    # ----------------------------------------
+
     db = SessionLocal()
     try:
-        # Password ko super secure banakar hash karna
         hashed_password = hashlib.sha256(passkey.encode()).hexdigest()
-        
-        # User create karna
         new_user = BotUser(
-            web_username=telegram_id, # Telegram ID ko hi login username bana diya
-            web_password=hashed_password,
-            role='customer', # By default har naya user customer hoga
-            full_name=full_name,
-            dob=dob,
-            email=email,
-            mobile_number=mobile,
-            profile_pic_url=profile_pic
+            user_id=int(telegram_id),
+            web_username=telegram_id, web_password=hashed_password, role='customer',
+            full_name=full_name, dob=dob, email=email, mobile_number=mobile, profile_pic_url=profile_pic_url
         )
         db.add(new_user)
         db.commit()
         
-        # Signup ke baad OTP verification ke liye bhejna
+        # User details save ho gayi, ab seedha Verify Page par bhejo OTP lene ke liye
         session = await get_session(request)
         session['pre_auth'] = True
-        session['temp_telegram_id'] = telegram_id
-        
-        # TODO: Yahan par bot us user ko OTP bhejega (Bot Integration next step me karenge)
+        session['user_role'] = 'customer'
+        session['target_user_id'] = int(telegram_id)
         
         return web.HTTPFound('/verify')
         
+    except ValueError:
+        return web.Response(text=render_template("signup.html", error="❌ Telegram ID must be Numbers only!"), content_type='text/html')
     except Exception as e:
         db.rollback()
-        html = render_template("signup.html", error="❌ Username/ID already exists or Database Error!")
-        return web.Response(text=html, content_type='text/html')
+        return web.Response(text=render_template("signup.html", error="❌ ID already exists! Please Login."), content_type='text/html')
     finally:
         db.close()
 
