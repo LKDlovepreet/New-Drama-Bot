@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAMGARHIA Services - Cloud Automation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=3.0">
+    <script>
+        function toggleLandingMenu() {
+            document.getElementById('landing-dropdown').classList.toggle('show');
+        }
+        // Bahar click karne par menu band karne ke liye
+        window.onclick = function(event) {
+            if (!event.target.matches('.menu-dots')) {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="landing-body">
+
+    <header class="top-navbar">
+        <div class="logo">
+            <h2>RAMGARHIA Services</h2>
+        </div>
+        <div class="nav-menu">
+            <div class="dropdown">
+                <button onclick="toggleLandingMenu()" class="menu-dots">⋮</button>
+                <div id="landing-dropdown" class="dropdown-content">
+                    <a href="/login">🔐 Login / Sign-up</a>
+                    <a href="#features">✨ Features</a>
+                    <a href="#terms">📜 Terms of Service</a>
+                    <a href="#privacy">🔒 Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="hero-section">
+        <h1>Automate Your Telegram Workflow <br>with Enterprise Grade Security.</h1>
+        <p>Deploy powerful Link Managers and Group Guard Bots instantly. Fully secured with 2FA and real-time monitoring.</p>
+        <a href="/login" class="btn-primary hero-btn">Go to Dashboard ➡️</a>
+    </div>
+
+    <div class="features-preview" id="features">
+        <div class="feature-box">
+            <h3>🔗 Smart Link Manager</h3>
+            <p>Automatically index files, generate secure deep-links, and force-sub channels before users can access your content.</p>
+        </div>
+        <div class="feature-box">
+            <h3>🛡️ Group Guard AI</h3>
+            <p>Advanced anti-spam, intelligent auto-replies, and a 3-strike automated ban system to keep your communities clean.</p>
+        </div>
+        <div class="feature-box">
+            <h3>🔐 2FA Admin Security</h3>
+            <p>Your control panel is protected by military-grade OTP verification directly linked to the Owner's Telegram account.</p>
+        </div>
+    </div>
+
+    <footer class="landing-footer">
+        <p>&copy; 2026 RAMGARHIA Services. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
