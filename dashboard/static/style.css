@@ -2,86 +2,99 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
+/* 🔘 PROFESSIONAL GRAY THEME VARIABLES */
 :root {
-    --bg-dark: #0f172a; --bg-panel: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8;
-    --accent: #3b82f6; --accent-hover: #2563eb; --success: #10b981; --danger: #ef4444; --border: #334155;
+    --bg-main: #e5e7eb;      /* Light Gray Background */
+    --bg-panel: #ffffff;     /* White Boxes */
+    --bg-header: #374151;    /* Dark Gray Header */
+    --bg-sidebar: #1f2937;   /* Deep Gray Sidebar */
+    --text-main: #111827;    /* Almost Black Text */
+    --text-muted: #6b7280;   /* Gray Text */
+    --text-light: #f9fafb;   /* White Text for dark areas */
+    --border: #d1d5db;       /* Light Gray Borders */
+    --accent: #4b5563;       /* Medium Gray Accent */
+    --accent-hover: #6b7280; /* Lighter Gray Hover */
+    --success: #10b981;      /* Green for live indicators */
+    --danger: #ef4444;
 }
 
-body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+body { background-color: var(--bg-main); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-/* --- TOP NAVBAR --- */
+/* --- TOP NAVBAR (RGThinks Header Style) --- */
 .top-navbar {
-    background: var(--bg-panel); height: 70px; display: flex; justify-content: space-between;
-    align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border); z-index: 1000; position: relative;
+    background: var(--bg-header); height: 60px; display: flex; justify-content: space-between;
+    align-items: center; padding: 0 20px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); z-index: 1000; position: relative;
 }
 
 .header-left { display: flex; align-items: center; width: 60px; }
-.menu-btn { background: none; border: none; color: var(--text-main); font-size: 26px; cursor: pointer; display: none; } /* PC me hide rahega */
+.menu-btn { background: none; border: none; color: var(--text-light); font-size: 26px; cursor: pointer; display: none; }
 
 .logo { flex: 1; text-align: center; }
-.logo h2 { font-family: 'Newsreader', serif; font-size: 24px; color: var(--accent); letter-spacing: 0.5px; margin: 0; }
+.logo h2 { font-family: 'Newsreader', serif; font-size: 24px; color: var(--text-light); letter-spacing: 0.5px; margin: 0; }
 
 .profile-section { width: 60px; display: flex; justify-content: flex-end; }
-.profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); cursor: pointer; transition: 0.3s;}
-.profile-pic:hover { border-color: var(--accent); }
+.profile-pic { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); cursor: pointer;}
 
 /* --- SIDEBAR --- */
 .dashboard-container { display: flex; flex: 1; overflow: hidden; position: relative; }
 
 .sidebar {
-    width: 260px; background: var(--bg-panel); border-right: 1px solid var(--border);
+    width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s ease-in-out;
 }
 
 .sidebar-nav { padding: 20px 10px; flex: 1; }
-.sidebar-nav button { width: 100%; text-align: left; background: transparent; padding: 14px 20px; margin-bottom: 5px; border-radius: 8px; color: var(--text-muted); font-size: 15px; border: none; cursor: pointer; transition: 0.3s; }
-.sidebar-nav button:hover { background: rgba(255,255,255,0.03); color: var(--text-main); }
-.sidebar-nav button.active { background: var(--accent); color: white; }
+.sidebar-nav button { 
+    width: 100%; text-align: left; background: transparent; padding: 14px 20px; 
+    margin-bottom: 5px; border-radius: 8px; color: var(--text-muted); font-size: 15px; 
+    border: none; cursor: pointer; transition: 0.3s; 
+}
+.sidebar-nav button:hover { background: rgba(255,255,255,0.05); color: var(--text-light); }
+.sidebar-nav button.active { background: var(--accent); color: var(--text-light); }
 
-.sidebar-footer { padding: 20px; border-top: 1px solid var(--border); }
-.logout-btn { width: 100%; padding: 12px; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; cursor: pointer; font-weight: 600; }
+.sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+.logout-btn { width: 100%; padding: 12px; background: rgba(239, 68, 68, 0.1); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; cursor: pointer; font-weight: 600; }
 
 /* --- MAIN CONTENT & BOT BOXES --- */
-.content { flex: 1; padding: 30px; overflow-y: auto; background: var(--bg-dark); }
-.welcome-msg h1 { font-size: 24px; font-weight: 600; margin-bottom: 5px; }
-.welcome-msg p { color: var(--text-muted); font-size: 14px; margin-bottom: 30px; }
+.content { flex: 1; padding: 30px; overflow-y: auto; background: var(--bg-main); }
+.welcome-msg h1 { font-size: 26px; font-weight: 600; margin-bottom: 5px; color: var(--text-main); }
+.welcome-msg p { color: var(--text-muted); font-size: 15px; margin-bottom: 30px; }
 
 .bot-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 
 .bot-card {
-    display: block; background: var(--bg-panel); padding: 25px; border-radius: 12px; border: 1px solid var(--border);
-    text-decoration: none; color: inherit; transition: 0.3s; cursor: pointer;
-    display: flex; flex-direction: column; aspect-ratio: 1 / 0.8; /* Square/Rectangle Mix for mobile */
+    display: flex; flex-direction: column; background: var(--bg-panel); padding: 25px; border-radius: 12px; 
+    border: 1px solid var(--border); text-decoration: none; color: inherit; transition: 0.3s; 
+    cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-.bot-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+.bot-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
 
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;}
-.card-header h3 { font-size: 16px; font-weight: 600; color: var(--text-main); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 15px;}
+.card-header h3 { font-size: 17px; font-weight: 600; color: var(--bg-header); }
 
 /* Blinking Animation */
-@keyframes blink { 0% { opacity: 1; box-shadow: 0 0 10px var(--success); } 50% { opacity: 0.3; box-shadow: none; } 100% { opacity: 1; box-shadow: 0 0 10px var(--success); } }
+@keyframes blink { 0% { opacity: 1; box-shadow: 0 0 8px var(--success); } 50% { opacity: 0.4; box-shadow: none; } 100% { opacity: 1; box-shadow: 0 0 8px var(--success); } }
 .live-dot { width: 12px; height: 12px; background: var(--success); border-radius: 50%; display: inline-block; animation: blink 1.5s infinite; }
 
 .card-body p { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; flex: 1;}
-.bot-stats { font-size: 13px; font-weight: 600; color: var(--accent); background: rgba(59, 130, 246, 0.1); padding: 8px 12px; border-radius: 6px; display: inline-block;}
+.bot-stats { font-size: 13px; font-weight: 600; color: var(--bg-sidebar); background: var(--bg-main); padding: 8px 12px; border-radius: 6px; display: inline-block; border: 1px solid var(--border);}
 
 /* Tables */
 table { width: 100%; border-collapse: collapse; background: var(--bg-panel); border-radius: 10px; border: 1px solid var(--border); margin-top: 20px;}
 th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
-th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+th { color: var(--text-muted); font-size: 13px; text-transform: uppercase; background: var(--bg-main); }
 
-/* --- MOBILE RESPONSIVENESS --- */
+/* --- MOBILE RESPONSIVENESS (Hamburger Menu) --- */
 @media (max-width: 768px) {
-    .menu-btn { display: block; } /* Hamburger show */
-    .logo h2 { font-size: 18px; } /* Chota Logo */
+    .menu-btn { display: block; }
+    .logo h2 { font-size: 20px; }
     
     .sidebar {
         position: absolute; left: -260px; top: 0; bottom: 0;
-        z-index: 100; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+        z-index: 100; box-shadow: 5px 0 15px rgba(0,0,0,0.2);
     }
-    .sidebar.active { left: 0; } /* Slide In */
+    .sidebar.active { left: 0; }
     
     .content { padding: 20px; }
-    .bot-cards-grid { grid-template-columns: 1fr; } /* Mobile me 1 box 1 line me */
-    .bot-card { aspect-ratio: 1 / 0.6; }
+    .bot-cards-grid { grid-template-columns: 1fr; } 
 }
