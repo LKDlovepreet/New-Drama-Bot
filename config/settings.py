@@ -6,7 +6,7 @@ LINK_BOT_TOKEN = os.getenv("LINK_BOT_TOKEN")
 
 GROUP_BOT_TOKEN = os.getenv("GROUP_BOT_TOKEN")
 
-AUTH_BOT_TOKEN = os.getenv("AUTH_BOT_TOKEN")
+BOT_TOKEN_3 = os.getenv("AUTH_BOT_TOKEN")
 
 OWNER_ID = int(os.getenv("OWNER_ID", 0))
 admin_env = os.getenv("ADMIN_IDS", "")
