@@ -26,7 +26,6 @@ def render_template(filename, **kwargs):
 # --- HANDLERS ---
 async def login_page(request):
     session = await get_session(request)
-    # Agar pehle se login hai, to wapas dashboard bhejo
     if session.get('authenticated'):
         return web.HTTPFound('/')
         
@@ -41,7 +40,7 @@ async def login_post(request):
         await send_otp_to_owner()
         session = await get_session(request)
         session['pre_auth'] = True
-        return web.HTTPFound('/verify') # FIX: raise ki jagah return
+        return web.HTTPFound('/verify')
     else:
         html = render_template("login.html", error="❌ Wrong Password!")
         return web.Response(text=html, content_type='text/html')
@@ -68,14 +67,14 @@ async def verify_post(request):
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        return web.HTTPFound('/') # FIX: raise ki jagah return
+        return web.HTTPFound('/')
     else:
         html = render_template("verify.html", error=msg)
         return web.Response(text=html, content_type='text/html')
 
 async def logout(request):
     session = await get_session(request)
-    session.invalidate() # FIX: Session properly kill
+    session.invalidate()
     return web.HTTPFound('/login')
 
 async def dashboard(request):
@@ -92,13 +91,14 @@ async def dashboard(request):
 # --- API HANDLERS ---
 async def api_handler(request):
     session = await get_session(request)
-    if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
+    if not session.get('authenticated'):
+        return web.Response(text="Unauthorized", status=401)
     
     page = request.match_info['page']
     db = SessionLocal()
     html = ""
     try:
-                if page == 'status':
+        if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
@@ -144,18 +144,17 @@ async def api_handler(request):
                 </a>
             </div>
             """
-
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for u in users])
+            rows = "".join([f"<tr><td><code>{user.user_id}</code></td><td>{user.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for user in users])
             html = f"<h1>Latest Users</h1><table><tr><th>User ID</th><th>Joined Date</th></tr>{rows}</table>"
         elif page == 'files':
             files = db.query(FileRecord).order_by(FileRecord.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td>{f.file_name}</td><td><span style='background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;'>{f.file_type}</span></td></tr>" for f in files])
+            rows = "".join([f"<tr><td>{file.file_name}</td><td><span style='background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;'>{file.file_type}</span></td></tr>" for file in files])
             html = f"<h1>Recent Files</h1><table><tr><th>File Name</th><th>Type</th></tr>{rows}</table>"
         elif page == 'admins':
             admins = db.query(BotUser).filter(BotUser.is_admin == True).all()
-            rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td><span style='color:var(--success)'>Super Admin</span></td></tr>" for u in admins])
+            rows = "".join([f"<tr><td><code>{admin.user_id}</code></td><td><span style='color:var(--success)'>Super Admin</span></td></tr>" for admin in admins])
             html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th></tr>{rows}</table>"
     finally:
         db.close()
@@ -166,11 +165,9 @@ async def api_handler(request):
 async def start_dashboard_server():
     app = web.Application()
     
-    # 👇 FIX: Permanent Fernet Key (Password se banayi gayi)
     secret_hash = hashlib.sha256(DASHBOARD_PASSWORD.encode()).digest()
     secret_key = base64.urlsafe_b64encode(secret_hash)
     
-    # FIX: max_age=SESSION_TIME lagaya gaya taaki browser cookie yaad rakhe
     setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(secret_key), max_age=SESSION_TIME))
 
     app.router.add_static('/static/', path='dashboard/static', name='static')
