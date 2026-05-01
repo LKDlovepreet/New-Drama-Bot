@@ -4,21 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2FA - RAMGARHIA Services</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=3.0">
+    <link rel="stylesheet" href="/static/style.css?v=6.0">
 </head>
 <body class="auth-body">
     <div class="auth-container">
         <div class="auth-box">
             <div class="auth-header">
-                <h2 style="color: var(--bg-header);">📲 Two-Step Verification</h2>
-                <p>OTP sent to Owner's Telegram</p>
+                <h2 style="color: var(--bg-header);">📲 Identity Verification</h2>
+                <p>Your account data is saved securely.</p>
             </div>
+            
+            <div style="margin-bottom: 25px;">
+                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px;">Click the button below to get your OTP instantly:</p>
+                <a href="https://t.me/LKDFILESHARING_BOT?start=getotp" target="_blank" class="btn-primary" style="display: block; background: #0088cc; text-decoration: none;">👉 Open Telegram for OTP</a>
+            </div>
+
             <form action="/verify" method="post">
                 <div class="input-group">
-                    <input type="text" name="otp" placeholder="123456" required maxlength="6" autocomplete="off" style="text-align: center; letter-spacing: 5px; font-size: 20px;">
+                    <input type="text" name="otp" placeholder="Enter 6-Digit OTP" required maxlength="6" autocomplete="off" style="text-align: center; letter-spacing: 5px; font-size: 20px;">
                 </div>
-                <button type="submit" class="btn-success">Verify & Enter 🔓</button>
+                <button type="submit" class="btn-success">Verify & Login 🔓</button>
             </form>
             <p class="error-msg">{error}</p>
         </div>
