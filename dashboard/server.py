@@ -193,6 +193,8 @@ async def start_dashboard_server():
     app.router.add_get('/dashboard', dashboard_page)
     app.router.add_post('/api/action', action_handler)
     app.router.add_get('/api/{page}', api_handler)
+    app.router.add_get('/signup', signup_page)
+    app.router.add_post('/signup', signup_post)
 
     port = int(os.environ.get("PORT", 8000))
     runner = web.AppRunner(app)
