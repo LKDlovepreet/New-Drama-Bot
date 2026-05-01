@@ -3,42 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAMGARHIA Services - Control Panel</title>
+    <title>Control Panel - RAMGARHIA Services</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
-    
+    <link rel="stylesheet" href="/static/style.css?v=3.0">
     <script>
-    // RGThinks jaisa Sidebar Toggle Function
     function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('active');
+        document.getElementById('sidebar').classList.toggle('active');
     }
-
-    async function loadData(page) {
-        document.getElementById('main-content').innerHTML = '<div class="loader">Loading Data...</div>';
-        document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
-        if(document.getElementById('btn-'+page)) {
-            document.getElementById('btn-'+page).classList.add('active');
-        }
-        
-        // Mobile me click karne par sidebar band ho jaye
-        if(window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
-
-        try {
-            const res = await fetch('/api/' + page);
-            const html = await res.text();
-            document.getElementById('main-content').innerHTML = html;
-        } catch(e) {
-            document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>';
-        }
-    }
-
-    // API Actions ke liye naya function
     async function performAction(actionType, targetId) {
         if(!confirm("Are you sure you want to perform this action?")) return;
-        
         try {
             const res = await fetch('/api/action', {
                 method: 'POST',
@@ -46,23 +19,29 @@
                 body: JSON.stringify({action: actionType, id: targetId})
             });
             const data = await res.json();
-            
             if(data.success) {
-                // Page ko turant refresh karne ke liye
                 const activePage = document.querySelector('.sidebar-nav button.active').id.replace('btn-', '');
                 loadData(activePage);
             } else {
                 alert("Error: " + data.message);
             }
-        } catch(e) {
-            alert("Action failed due to network error.");
-        }
+        } catch(e) { alert("Network error."); }
     }
+    async function loadData(page) {
+        document.getElementById('main-content').innerHTML = '<div class="loader">Loading Data...</div>';
+        document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
+        if(document.getElementById('btn-'+page)) document.getElementById('btn-'+page).classList.add('active');
+        if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('active');
 
+        try {
+            const res = await fetch('/api/' + page);
+            const html = await res.text();
+            document.getElementById('main-content').innerHTML = html;
+        } catch(e) { document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>'; }
+    }
     </script>
 </head>
 <body onload="loadData('status')">
-    
     <header class="top-navbar">
         <div class="header-left">
             <button class="menu-btn" onclick="toggleSidebar()">☰</button>
@@ -84,15 +63,10 @@
                 <button id="btn-admins" onclick="loadData('admins')">👮 Manage Admins</button>
             </nav>
             <div class="sidebar-footer">
-                <form action="/logout" method="post">
-                    <button class="logout-btn" type="submit">🚪 Logout</button>
-                </form>
+                <form action="/logout" method="post"><button class="logout-btn" type="submit">🚪 Logout</button></form>
             </div>
         </aside>
-
-        <main class="content" id="main-content">
-            </main>
+        <main class="content" id="main-content"></main>
     </div>
-
 </body>
 </html>
