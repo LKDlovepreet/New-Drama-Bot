@@ -98,7 +98,7 @@ async def api_handler(request):
     db = SessionLocal()
     html = ""
     try:
-        if page == 'status':
+                if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
@@ -106,7 +106,7 @@ async def api_handler(request):
             html = f"""
             <div class="welcome-msg">
                 <h1>Welcome back, Boss! 👋</h1>
-                <p>Here is the live status of your automated systems.</p>
+                <p>System is running smoothly. Here is your live overview.</p>
             </div>
             
             <div class="bot-cards-grid">
@@ -132,18 +132,19 @@ async def api_handler(request):
                     </div>
                 </a>
                 
-                <a href="#security_details" class="bot-card" style="border-color: rgba(59, 130, 246, 0.4);">
+                <a href="#security_details" class="bot-card">
                     <div class="card-header">
-                        <h3 style="color: var(--accent);">System API Security</h3>
-                        <span class="live-dot" style="background: var(--accent); box-shadow: 0 0 10px var(--accent);"></span>
+                        <h3>System API Security</h3>
+                        <span class="live-dot" style="background: var(--bg-sidebar); animation: none; box-shadow: none;"></span>
                     </div>
                     <div class="card-body">
                         <p>Core Database, Security Logs & 2FA Authentication Engine.</p>
-                        <div class="bot-stats" style="color: var(--success); background: rgba(16, 185, 129, 0.1);">🛡️ Protected</div>
+                        <div class="bot-stats">🛡️ 2FA Protected</div>
                     </div>
                 </a>
             </div>
             """
+
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
             rows = "".join([f"<tr><td><code>{user.user_id}</code></td><td>{user.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for user in users])
