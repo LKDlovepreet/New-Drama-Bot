@@ -4,24 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - RAMGARHIA Services</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=3.0">
+    <link rel="stylesheet" href="/static/style.css?v=5.0">
 </head>
 <body class="auth-body">
     <div class="auth-container">
         <div class="auth-box">
-            <div class="auth-header">
-                <h2 style="font-family: 'Newsreader', serif; color: var(--bg-header);">RAMGARHIA Services</h2>
-                <p>Enter Master Password to Access Panel</p>
-            </div>
+            <h2 style="font-family: 'Newsreader', serif;">Welcome Back</h2>
+            <p style="color:var(--text-muted); margin-bottom:25px;">Login to your account</p>
+            
             <form action="/login" method="post">
                 <div class="input-group">
-                    <input type="password" name="passkey" placeholder="••••••••" required>
+                    <input type="text" name="login_id" placeholder="Telegram ID or Username" required>
+                    <input type="password" name="passkey" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn-primary">Secure Login ➡️</button>
+                <button type="submit" class="btn-primary">Login ➡️</button>
             </form>
             <p class="error-msg">{error}</p>
-            <a href="/" class="back-link">← Back to Home</a>
+            <p style="font-size:14px; margin-top:15px;">New here? <a href="/signup" style="color:var(--bg-header);">Create an account</a></p>
         </div>
     </div>
 </body>
