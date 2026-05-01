@@ -4,12 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAMGARHIA Services - Control Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600;6..72,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    
     <script>
+    // Sidebar Toggle Function (Mobile ke liye)
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+
     async function loadData(page) {
         document.getElementById('main-content').innerHTML = '<div class="loader">Loading Data...</div>';
         document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-'+page).classList.add('active');
+        if(document.getElementById('btn-'+page)) {
+            document.getElementById('btn-'+page).classList.add('active');
+        }
+        
+        // Mobile me click karne ke baad sidebar auto-close ho jaye
+        if(window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('active');
+        }
 
         try {
             const res = await fetch('/api/' + page);
@@ -24,18 +38,21 @@
 <body onload="loadData('status')">
     
     <header class="top-navbar">
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        </div>
         <div class="logo">
-            <h2>👑 RAMGARHIA Services</h2>
+            <h2>RAMGARHIA Services</h2>
         </div>
         <div class="profile-section">
-            <button class="profile-btn">👤 Owner Profile</button>
+            <img src="/static/profile.jpg" alt="Profile" class="profile-pic" onerror="this.src='https://ui-avatars.com/api/?name=Owner&background=3b82f6&color=fff'">
         </div>
     </header>
 
     <div class="dashboard-container">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <nav class="sidebar-nav">
-                <button id="btn-status" onclick="loadData('status')">📊 Dashboard Overview</button>
+                <button id="btn-status" onclick="loadData('status')">📊 Dashboard Menu</button>
                 <button id="btn-users" onclick="loadData('users')">👥 Manage Users</button>
                 <button id="btn-files" onclick="loadData('files')">📂 Manage Files</button>
                 <button id="btn-admins" onclick="loadData('admins')">👮 Manage Admins</button>
