@@ -34,6 +34,31 @@
             document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>';
         }
     }
+
+    // API Actions ke liye naya function
+    async function performAction(actionType, targetId) {
+        if(!confirm("Are you sure you want to perform this action?")) return;
+        
+        try {
+            const res = await fetch('/api/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: actionType, id: targetId})
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                // Page ko turant refresh karne ke liye
+                const activePage = document.querySelector('.sidebar-nav button.active').id.replace('btn-', '');
+                loadData(activePage);
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch(e) {
+            alert("Action failed due to network error.");
+        }
+    }
+
     </script>
 </head>
 <body onload="loadData('status')">
