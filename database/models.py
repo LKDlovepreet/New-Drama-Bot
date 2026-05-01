@@ -29,7 +29,13 @@ class BotUser(Base):
     is_premium = Column(Boolean, default=False)
     verification_expiry = Column(DateTime, nullable=True)
     active_topic_id = Column(Integer, default=0)
-    
+        # 👇 SAAS CUSTOMER DETAILS (New) 👇
+    full_name = Column(String, nullable=True)
+    dob = Column(String, nullable=True)
+    mobile_number = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    profile_pic_url = Column(String, nullable=True)
+
     # --- PURANA ADMIN SYSTEM ---
     is_admin = Column(Boolean, default=False)
     
