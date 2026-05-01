@@ -98,7 +98,7 @@ async def api_handler(request):
     db = SessionLocal()
     html = ""
     try:
-                if page == 'status':
+        if page == 'status':
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
@@ -144,7 +144,6 @@ async def api_handler(request):
                 </a>
             </div>
             """
-
         elif page == 'users':
             users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
             rows = "".join([f"<tr><td><code>{user.user_id}</code></td><td>{user.joined_date.strftime('%Y-%m-%d %H:%M')}</td></tr>" for user in users])
