@@ -32,13 +32,60 @@ async def login_page(request):
 
 async def login_post(request):
     data = await request.post()
-    if data.get('passkey') == DASHBOARD_PASSWORD:
-        await send_otp_to_owner()
-        session = await get_session(request)
-        session['pre_auth'] = True
-        return web.HTTPFound('/verify')
+    login_id = data.get('login_id')
+    password = data.get('passkey')
+    hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+    
+    db = SessionLocal()
+    try:
+        # Check if it's the Master Owner (Environment Variable wala)
+        if login_id == "owner" and password == DASHBOARD_PASSWORD:
+            await send_otp_to_owner()
+            session = await get_session(request)
+            session['pre_auth'] = True
+            session['user_role'] = 'owner'
+            return web.HTTPFound('/verify')
+
+        # Check for Customer/Admin in Database
+        user = db.query(BotUser).filter(
+            (BotUser.web_username == login_id) | (BotUser.user_id.cast(String) == login_id)
+        ).filter(BotUser.web_password == hashed_pw).first()
+
+        if user:
+            # TODO: Send OTP to user's Telegram via Bot 3
+            session = await get_session(request)
+            session['pre_auth'] = True
+            session['user_role'] = user.role
+            session['target_user_id'] = user.user_id
+            return web.HTTPFound('/verify')
+        else:
+            return web.Response(text=render_template("login.html", error="❌ Invalid Credentials!"), content_type='text/html')
+    finally:
+        db.close()
+
+async def verify_post(request):
+    session = await get_session(request)
+    if not session.get('pre_auth'): return web.HTTPFound('/login')
+    
+    data = await request.post()
+    otp = data.get('otp')
+    
+    # Simple OTP check for now (verify_otp logic)
+    success, msg = verify_otp(otp)
+    
+    if success:
+        session['authenticated'] = True
+        session['login_time'] = time.time()
+        role = session.get('user_role')
+        del session['pre_auth']
+        
+        # Role ke hisaab se alag page par bhejna
+        if role == 'owner':
+            return web.HTTPFound('/dashboard')
+        else:
+            return web.HTTPFound('/customer-panel') # Naya Customer Panel
     else:
-        return web.Response(text=render_template("login.html", error="❌ Wrong Password!"), content_type='text/html')
+        return web.Response(text=render_template("verify.html", error=msg), content_type='text/html')
 
 async def signup_page(request):
     html = render_template("signup.html", error="")
