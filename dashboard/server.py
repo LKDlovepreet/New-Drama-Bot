@@ -12,30 +12,30 @@ from database.db import SessionLocal
 from database.models import BotUser, FileRecord, Channel
 from .otp_service import send_otp_to_owner, verify_otp
 
-# --- TEMPLATE RENDERER ---
 def render_template(filename, **kwargs):
     filepath = os.path.join("dashboard", "templates", filename)
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    
     for key, value in kwargs.items():
         content = content.replace(f"{{{key}}}", str(value))
-        
     return content
 
-# --- HANDLERS ---
+# 🌐 1. Landing Page Handler
+async def landing_page(request):
+    html = render_template("landing.html")
+    return web.Response(text=html, content_type='text/html')
+
+# 🔐 2. Auth Handlers
 async def login_page(request):
     session = await get_session(request)
     if session.get('authenticated'):
-        return web.HTTPFound('/')
-        
+        return web.HTTPFound('/dashboard')
     html = render_template("login.html", error="")
     return web.Response(text=html, content_type='text/html')
 
 async def login_post(request):
     data = await request.post()
     password = data.get('passkey') 
-    
     if password == DASHBOARD_PASSWORD:
         await send_otp_to_owner()
         session = await get_session(request)
@@ -48,10 +48,9 @@ async def login_post(request):
 async def verify_page(request):
     session = await get_session(request)
     if session.get('authenticated'):
-        return web.HTTPFound('/')
+        return web.HTTPFound('/dashboard')
     if not session.get('pre_auth'): 
         return web.HTTPFound('/login')
-        
     html = render_template("verify.html", error="")
     return web.Response(text=html, content_type='text/html')
 
@@ -59,15 +58,13 @@ async def verify_post(request):
     session = await get_session(request)
     if not session.get('pre_auth'): 
         return web.HTTPFound('/login')
-    
     data = await request.post()
     success, msg = verify_otp(data.get('otp'))
-    
     if success:
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        return web.HTTPFound('/')
+        return web.HTTPFound('/dashboard') # Login success hone par Dashboard bhejo
     else:
         html = render_template("verify.html", error=msg)
         return web.Response(text=html, content_type='text/html')
@@ -75,24 +72,23 @@ async def verify_post(request):
 async def logout(request):
     session = await get_session(request)
     session.invalidate()
-    return web.HTTPFound('/login')
+    return web.HTTPFound('/') # Logout hokar landing page par aayega
 
-async def dashboard(request):
+# 🎛️ 3. Main Dashboard Handler
+async def dashboard_page(request):
     session = await get_session(request)
     if not session.get('authenticated') or (time.time() - session.get('login_time', 0) > SESSION_TIME):
         session.invalidate()
         return web.HTTPFound('/login')
-    
     html = render_template("dashboard.html", error="")
     resp = web.Response(text=html, content_type='text/html')
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
-# --- API HANDLERS ---
+# ⚙️ 4. API Handlers
 async def api_handler(request):
     session = await get_session(request)
-    if not session.get('authenticated'):
-        return web.Response(text="Unauthorized", status=401)
+    if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
     
     page = request.match_info['page']
     db = SessionLocal()
@@ -102,45 +98,23 @@ async def api_handler(request):
             u = db.query(BotUser).count()
             f = db.query(FileRecord).count()
             c = db.query(Channel).count()
-            
             html = f"""
             <div class="welcome-msg">
                 <h1>Welcome back, Boss! 👋</h1>
                 <p>System is running smoothly. Here is your live overview.</p>
             </div>
-            
             <div class="bot-cards-grid">
                 <a href="#bot1_details" class="bot-card">
-                    <div class="card-header">
-                        <h3>Link Manager Bot</h3>
-                        <span class="live-dot"></span>
-                    </div>
-                    <div class="card-body">
-                        <p>Handling Deep Linking, File Storage & User Broadcasting automatically.</p>
-                        <div class="bot-stats">📁 Indexed Files: {f}</div>
-                    </div>
+                    <div class="card-header"><h3>Link Manager Bot</h3><span class="live-dot"></span></div>
+                    <div class="card-body"><p>Handling Deep Linking, File Storage & User Broadcasting automatically.</p><div class="bot-stats">📁 Indexed Files: {f}</div></div>
                 </a>
-
                 <a href="#bot2_details" class="bot-card">
-                    <div class="card-header">
-                        <h3>Group Guard Bot</h3>
-                        <span class="live-dot"></span>
-                    </div>
-                    <div class="card-body">
-                        <p>Managing Security, Auto-replies, Anti-Spam & Warning Systems.</p>
-                        <div class="bot-stats">👥 Active Users: {u}</div>
-                    </div>
+                    <div class="card-header"><h3>Group Guard Bot</h3><span class="live-dot"></span></div>
+                    <div class="card-body"><p>Managing Security, Auto-replies, Anti-Spam & Warning Systems.</p><div class="bot-stats">👥 Active Users: {u}</div></div>
                 </a>
-                
                 <a href="#security_details" class="bot-card">
-                    <div class="card-header">
-                        <h3>System API Security</h3>
-                        <span class="live-dot" style="background: var(--bg-sidebar); animation: none; box-shadow: none;"></span>
-                    </div>
-                    <div class="card-body">
-                        <p>Core Database, Security Logs & 2FA Authentication Engine.</p>
-                        <div class="bot-stats">🛡️ 2FA Protected</div>
-                    </div>
+                    <div class="card-header"><h3>System API Security</h3><span class="live-dot" style="background: var(--bg-sidebar); animation: none; box-shadow: none;"></span></div>
+                    <div class="card-body"><p>Core Database, Security Logs & 2FA Authentication Engine.</p><div class="bot-stats">🛡️ 2FA Protected</div></div>
                 </a>
             </div>
             """
@@ -158,26 +132,23 @@ async def api_handler(request):
             html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th></tr>{rows}</table>"
     finally:
         db.close()
-        
     return web.Response(text=html, content_type='text/html')
 
-# --- SERVER STARTUP ---
 async def start_dashboard_server():
     app = web.Application()
-    
     secret_hash = hashlib.sha256(DASHBOARD_PASSWORD.encode()).digest()
     secret_key = base64.urlsafe_b64encode(secret_hash)
-    
     setup(app, EncryptedCookieStorage(base64.urlsafe_b64decode(secret_key), max_age=SESSION_TIME))
 
     app.router.add_static('/static/', path='dashboard/static', name='static')
 
+    app.router.add_get('/', landing_page)          # Naya Landing Page Route
     app.router.add_get('/login', login_page)
     app.router.add_post('/login', login_post)
     app.router.add_get('/verify', verify_page)
     app.router.add_post('/verify', verify_post)
     app.router.add_post('/logout', logout)
-    app.router.add_get('/', dashboard)
+    app.router.add_get('/dashboard', dashboard_page) # Dashboard ab /dashboard par hai
     app.router.add_get('/api/{page}', api_handler)
 
     port = int(os.environ.get("PORT", 8000))
