@@ -15,34 +15,47 @@ router = Router()
 async def manager_start_cmd(message: types.Message, command: CommandObject):
     args = command.args 
     
-    # 🟢 1. Agar user website se OTP lene aaya hai
+    # 🟢 1. Web Signup / Login ke baad User OTP lene aayega
     if args == 'getotp':
         user_id = message.from_user.id
         db = SessionLocal()
         user = db.query(BotUser).filter(BotUser.user_id == user_id).first()
-        db.close()
         
         if user:
+            # User ki Telegram se taaza jankari (Username / DP id) save karna
+            user.web_username = message.from_user.username or str(user_id)
+            
+            photos = await message.bot.get_user_profile_photos(user_id)
+            if photos.total_count > 0:
+                tg_dp_file_id = photos.photos[0][-1].file_id
+                # Aap DB mein telegram_dp column banakar ise bhi save kar sakte hain
+                
+            db.commit()
+            db.close()
+            
             otp = generate_otp()
             OTP_STORE[str(user_id)] = {'otp': otp, 'time': time.time()}
-            await message.reply(f"📲 <b>Your Login OTP:</b> <code>{otp}</code>\n\nValid for 5 minutes. Enter this on the website to verify your account.", parse_mode="HTML")
+            
+            # OTP bhejna
+            await message.reply(f"📲 <b>Your Login OTP:</b> <code>{otp}</code>\n\nWelcome {message.from_user.first_name}! Your details have been synced.\n\nValid for 5 minutes. Enter this on the website to verify your account.", parse_mode="HTML")
         else:
-            await message.reply("❌ Your account was not found. Please fill the Sign Up form on the website first.")
+            db.close()
+            await message.reply("❌ Your account was not found in the system. Please fill the Sign Up form on the website first.")
         return
         
-    # 👑 2. Manager Bot sirf aapko (Owner) ko control dega
+    # 👑 2. Manager Bot sirf Owner Dashboard ke liye kaam karega
     if message.from_user.id != OWNER_ID:
-        await message.answer("⚠️ Yeh ek private Manager Bot hai. Access Denied.")
+        await message.answer("⚠️ You are not authorized. This is a private system bot.")
         return
 
     text = (
         "👑 **Master Dashboard Bot**\n\n"
-        "Welcome Back, Boss! 🫡\nYahan se aap apne poore system ka live data dekh sakte hain."
+        "Welcome Back, Boss! 🫡\nHere is your live control panel."
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Quick Stats", callback_data="mgr_quick_stats")],
-        [InlineKeyboardButton(text="💻 Open Web Dashboard", url="https://aapka-web-url.com")], 
+        [InlineKeyboardButton(text="💻 Open Web Dashboard", url="https://your-app-url.com")], 
     ])
     
     await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
@@ -69,7 +82,6 @@ async def show_quick_stats(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "mgr_back")
 async def mgr_back_home(callback: types.CallbackQuery):
-    # Dummy command object banakar wapas menu show karna
     dummy_cmd = type('CommandObject', (), {'args': None})()
     await manager_start_cmd(callback.message, dummy_cmd)
     await callback.message.delete()
