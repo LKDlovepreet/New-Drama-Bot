@@ -12,6 +12,7 @@ from database.db import SessionLocal
 from sqlalchemy import String
 from database.models import BotUser, FileRecord, Channel
 from dashboard.otp_service import send_otp_to_owner, send_otp_to_customer, verify_otp
+
 def render_template(filename, **kwargs):
     filepath = os.path.join("dashboard", "templates", filename)
     with open(filepath, "r", encoding="utf-8") as f:
@@ -35,10 +36,10 @@ async def login_post(request):
     login_id = data.get('login_id')
     password = data.get('passkey')
     hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-    
+
     db = SessionLocal()
     try:
-        # Check if it's the Master Owner (Environment Variable wala)
+        # Check if it's the Master Owner
         if login_id == "owner" and password == DASHBOARD_PASSWORD:
             await send_otp_to_owner()
             session = await get_session(request)
@@ -52,7 +53,11 @@ async def login_post(request):
         ).filter(BotUser.web_password == hashed_pw).first()
 
         if user:
-            # TODO: Send OTP to user's Telegram via Bot 3
+            # Customer ko OTP bhejenge
+            success, error_msg = await send_otp_to_customer(user.user_id)
+            if not success:
+                return web.Response(text=render_template("login.html", error=f"❌ Error: {error_msg} (Start the Bot first!)"), content_type='text/html')
+                
             session = await get_session(request)
             session['pre_auth'] = True
             session['user_role'] = user.role
@@ -63,64 +68,30 @@ async def login_post(request):
     finally:
         db.close()
 
-async def verify_post(request):
-    session = await get_session(request)
-    if not session.get('pre_auth'): return web.HTTPFound('/login')
-    
-    data = await request.post()
-    otp = data.get('otp')
-    
-    # Simple OTP check for now (verify_otp logic)
-    success, msg = verify_otp(otp)
-    
-    if success:
-        session['authenticated'] = True
-        session['login_time'] = time.time()
-        role = session.get('user_role')
-        del session['pre_auth']
-        
-        # Role ke hisaab se alag page par bhejna
-        if role == 'owner':
-            return web.HTTPFound('/dashboard')
-        else:
-            return web.HTTPFound('/customer-panel') # Naya Customer Panel
-    else:
-        return web.Response(text=render_template("verify.html", error=msg), content_type='text/html')
-
 async def signup_page(request):
     html = render_template("signup.html", error="")
     return web.Response(text=html, content_type='text/html')
 
 async def signup_post(request):
-    # Enctype multipart/form-data hone ke kaaran post() se data lenge
-    data = await request.post()
-    
-    full_name, dob, telegram_id = data.get('full_name'), data.get('dob'), data.get('telegram_id')
-    passkey, email, mobile = data.get('passkey'), data.get('email'), data.get('mobile_number')
-    
-    profile_pic_url = "https://i.pinimg.com/736x/8f/33/2d/8f332dd34b6e5114705bd364741db457.jpg" # Default Oggy
-    
-    # --- Backend Cloudinary Upload System ---
-    profile_pic_file = data.get('profile_pic')
-    if profile_pic_file and profile_pic_file.filename:
-        try:
-            # File ko read karna aur Cloudinary par bhejna
-            url = "https://api.cloudinary.com/v1_1/dordvtopl/image/upload"
-            form_data = aiohttp.FormData()
-            form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
-            form_data.add_field('upload_preset', 'Profile_pictures')
-            
-            async with aiohttp.ClientSession() as http_session:
-                async with http_session.post(url, data=form_data) as resp:
-                    res_json = await resp.json()
-                    if 'secure_url' in res_json:
-                        profile_pic_url = res_json['secure_url']
-        except Exception as e:
-            print("Cloudinary Upload Error:", str(e))
-    # ----------------------------------------
-
-    db = SessionLocal()
     try:
+        # AJAX form submission ke liye JSON receive karna
+        data = await request.json()
+        
+        full_name = data.get('full_name')
+        dob = data.get('dob')
+        telegram_id = data.get('telegram_id')
+        passkey = data.get('passkey')
+        email = data.get('email')
+        mobile = data.get('mobile_number')
+        profile_pic_url = data.get('profile_pic_url')
+        
+        db = SessionLocal()
+        
+        existing_user = db.query(BotUser).filter(BotUser.user_id == int(telegram_id)).first()
+        if existing_user:
+            db.close()
+            return web.json_response({"success": False, "message": "This Telegram ID is already registered. Please Login."})
+
         hashed_password = hashlib.sha256(passkey.encode()).hexdigest()
         new_user = BotUser(
             user_id=int(telegram_id),
@@ -129,22 +100,21 @@ async def signup_post(request):
         )
         db.add(new_user)
         db.commit()
+        db.close()
         
-        # User details save ho gayi, ab seedha Verify Page par bhejo OTP lene ke liye
+        # Session set karna taaki Verify page open ho sake
         session = await get_session(request)
         session['pre_auth'] = True
         session['user_role'] = 'customer'
         session['target_user_id'] = int(telegram_id)
         
-        return web.HTTPFound('/verify')
+        # Frontend ko successful JSON response dena
+        return web.json_response({"success": True, "redirect": "/verify"})
         
     except ValueError:
-        return web.Response(text=render_template("signup.html", error="❌ Telegram ID must be Numbers only!"), content_type='text/html')
+        return web.json_response({"success": False, "message": "Telegram ID must be numbers only!"})
     except Exception as e:
-        db.rollback()
-        return web.Response(text=render_template("signup.html", error="❌ ID already exists! Please Login."), content_type='text/html')
-    finally:
-        db.close()
+        return web.json_response({"success": False, "message": str(e)})
 
 async def verify_page(request):
     session = await get_session(request)
@@ -155,13 +125,23 @@ async def verify_page(request):
 async def verify_post(request):
     session = await get_session(request)
     if not session.get('pre_auth'): return web.HTTPFound('/login')
+    
     data = await request.post()
-    success, msg = verify_otp(data.get('otp'))
+    otp = data.get('otp')
+    role = session.get('user_role')
+    target_id = session.get('target_user_id') if role != 'owner' else 'owner'
+    
+    success, msg = verify_otp(target_id, otp)
+    
     if success:
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        return web.HTTPFound('/dashboard')
+        if role == 'owner':
+            return web.HTTPFound('/dashboard')
+        else:
+            # Baad mein yahan customer dashboard banayenge
+            return web.HTTPFound('/dashboard') 
     else:
         return web.Response(text=render_template("verify.html", error=msg), content_type='text/html')
 
@@ -182,7 +162,7 @@ async def dashboard_page(request):
 async def action_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.json_response({"success": False, "message": "Unauthorized"})
-    
+
     data = await request.json()
     action, target_id = data.get('action'), data.get('id')
     db = SessionLocal()
@@ -207,7 +187,7 @@ async def action_handler(request):
 async def api_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
-    
+
     page = request.match_info['page']
     db = SessionLocal()
     html = ""
