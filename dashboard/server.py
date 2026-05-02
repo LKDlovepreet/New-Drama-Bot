@@ -2,6 +2,7 @@ import os
 import time
 import base64
 import hashlib
+import aiohttp
 from aiohttp import web
 import aiohttp_session
 from aiohttp_session import setup, get_session
@@ -10,7 +11,8 @@ from aiohttp_session.cookie_storage import EncryptedCookieStorage
 from config.settings import DASHBOARD_PASSWORD, SESSION_TIME
 from database.db import SessionLocal
 from sqlalchemy import String
-from database.models import BotUser, FileRecord, Channel
+# Yahan WebsiteUser ko import kiya gaya hai
+from database.models import BotUser, FileRecord, Channel, WebsiteUser
 from dashboard.otp_service import send_otp_to_owner, send_otp_to_customer, verify_otp
 
 def render_template(filename, **kwargs):
@@ -39,7 +41,7 @@ async def login_post(request):
 
     db = SessionLocal()
     try:
-        # Check if it's the Master Owner
+        # Owner check
         if login_id == "owner" and password == DASHBOARD_PASSWORD:
             await send_otp_to_owner()
             session = await get_session(request)
@@ -47,21 +49,20 @@ async def login_post(request):
             session['user_role'] = 'owner'
             return web.HTTPFound('/verify')
 
-        # Check for Customer/Admin in Database
-        user = db.query(BotUser).filter(
-            (BotUser.web_username == login_id) | (BotUser.user_id.cast(String) == login_id)
-        ).filter(BotUser.web_password == hashed_pw).first()
+        # Ab sirf WebsiteUser table me check karega
+        user = db.query(WebsiteUser).filter(
+            WebsiteUser.telegram_id.cast(String) == login_id
+        ).filter(WebsiteUser.web_password == hashed_pw).first()
 
         if user:
-            # Customer ko OTP bhejenge
-            success, error_msg = await send_otp_to_customer(user.user_id)
+            success, error_msg = await send_otp_to_customer(user.telegram_id)
             if not success:
                 return web.Response(text=render_template("login.html", error=f"❌ Error: {error_msg} (Start the Bot first!)"), content_type='text/html')
                 
             session = await get_session(request)
             session['pre_auth'] = True
             session['user_role'] = user.role
-            session['target_user_id'] = user.user_id
+            session['target_user_id'] = user.telegram_id
             return web.HTTPFound('/verify')
         else:
             return web.Response(text=render_template("login.html", error="❌ Invalid Credentials!"), content_type='text/html')
@@ -74,41 +75,59 @@ async def signup_page(request):
 
 async def signup_post(request):
     try:
-        # AJAX form submission ke liye JSON receive karna
-        data = await request.json()
+        data = await request.post()
         
         full_name = data.get('full_name')
         dob = data.get('dob')
         telegram_id = data.get('telegram_id')
         passkey = data.get('passkey')
-        email = data.get('email')
-        mobile = data.get('mobile_number')
-        profile_pic_url = data.get('profile_pic_url')
+        email = data.get('email', '')
+        mobile = data.get('mobile_number', '')
         
         db = SessionLocal()
-        
-        existing_user = db.query(BotUser).filter(BotUser.user_id == int(telegram_id)).first()
+        existing_user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == int(telegram_id)).first()
         if existing_user:
             db.close()
-            return web.json_response({"success": False, "message": "This Telegram ID is already registered. Please Login."})
+            return web.json_response({"success": False, "message": "This Telegram ID is already registered."})
+
+        profile_pic_url = "https://i.pinimg.com/736x/8f/33/2d/8f332dd34b6e5114705bd364741db457.jpg"
+        profile_pic_file = data.get('profile_pic')
+        
+        if profile_pic_file and hasattr(profile_pic_file, 'filename') and profile_pic_file.filename:
+            try:
+                url = "https://api.cloudinary.com/v1_1/dordvtopl/image/upload"
+                form_data = aiohttp.FormData()
+                form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
+                form_data.add_field('upload_preset', 'Profile_pictures')
+                
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, data=form_data) as resp:
+                        res_json = await resp.json()
+                        if 'secure_url' in res_json:
+                            profile_pic_url = res_json['secure_url']
+            except Exception as e:
+                print("Cloudinary Upload Error:", str(e))
 
         hashed_password = hashlib.sha256(passkey.encode()).hexdigest()
-        new_user = BotUser(
-            user_id=int(telegram_id),
-            web_username=telegram_id, web_password=hashed_password, role='customer',
-            full_name=full_name, dob=dob, email=email, mobile_number=mobile, profile_pic_url=profile_pic_url
+        new_user = WebsiteUser(
+            telegram_id=int(telegram_id),
+            web_password=hashed_password, 
+            role='customer',
+            full_name=full_name, 
+            dob=dob, 
+            email=email, 
+            mobile_number=mobile, 
+            profile_pic_url=profile_pic_url
         )
         db.add(new_user)
         db.commit()
         db.close()
         
-        # Session set karna taaki Verify page open ho sake
         session = await get_session(request)
         session['pre_auth'] = True
         session['user_role'] = 'customer'
         session['target_user_id'] = int(telegram_id)
         
-        # Frontend ko successful JSON response dena
         return web.json_response({"success": True, "redirect": "/verify"})
         
     except ValueError:
@@ -137,11 +156,7 @@ async def verify_post(request):
         session['authenticated'] = True
         session['login_time'] = time.time()
         del session['pre_auth']
-        if role == 'owner':
-            return web.HTTPFound('/dashboard')
-        else:
-            # Baad mein yahan customer dashboard banayenge
-            return web.HTTPFound('/dashboard') 
+        return web.HTTPFound('/dashboard')
     else:
         return web.Response(text=render_template("verify.html", error=msg), content_type='text/html')
 
