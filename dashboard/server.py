@@ -58,7 +58,7 @@ async def login_post(request):
             success, error_msg = await send_otp_to_customer(user.telegram_id)
             if not success:
                 return web.Response(text=render_template("login.html", error=f"❌ Error: {error_msg} (Start the Bot first!)"), content_type='text/html')
-                
+
             session = await get_session(request)
             session['pre_auth'] = True
             session['user_role'] = user.role
@@ -76,14 +76,14 @@ async def signup_page(request):
 async def signup_post(request):
     try:
         data = await request.post()
-        
+
         full_name = data.get('full_name')
         dob = data.get('dob')
         telegram_id = data.get('telegram_id')
         passkey = data.get('passkey')
         email = data.get('email', '')
         mobile = data.get('mobile_number', '')
-        
+
         db = SessionLocal()
         existing_user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == int(telegram_id)).first()
         if existing_user:
@@ -92,14 +92,14 @@ async def signup_post(request):
 
         profile_pic_url = "https://i.pinimg.com/736x/8f/33/2d/8f332dd34b6e5114705bd364741db457.jpg"
         profile_pic_file = data.get('profile_pic')
-        
+
         if profile_pic_file and hasattr(profile_pic_file, 'filename') and profile_pic_file.filename:
             try:
                 url = "https://api.cloudinary.com/v1_1/dordvtopl/image/upload"
                 form_data = aiohttp.FormData()
                 form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
                 form_data.add_field('upload_preset', 'Profile_pictures')
-                
+
                 async with aiohttp.ClientSession() as http_session:
                     async with http_session.post(url, data=form_data) as resp:
                         res_json = await resp.json()
@@ -122,14 +122,14 @@ async def signup_post(request):
         db.add(new_user)
         db.commit()
         db.close()
-        
+
         session = await get_session(request)
         session['pre_auth'] = True
         session['user_role'] = 'customer'
         session['target_user_id'] = int(telegram_id)
-        
+
         return web.json_response({"success": True, "redirect": "/verify"})
-        
+
     except ValueError:
         return web.json_response({"success": False, "message": "Telegram ID must be numbers only!"})
     except Exception as e:
@@ -144,14 +144,14 @@ async def verify_page(request):
 async def verify_post(request):
     session = await get_session(request)
     if not session.get('pre_auth'): return web.HTTPFound('/login')
-    
+
     data = await request.post()
     otp = data.get('otp')
     role = session.get('user_role')
     target_id = session.get('target_user_id') if role != 'owner' else 'owner'
-    
+
     success, msg = verify_otp(target_id, otp)
-    
+
     if success:
         session['authenticated'] = True
         session['login_time'] = time.time()
@@ -170,13 +170,41 @@ async def dashboard_page(request):
     if not session.get('authenticated') or (time.time() - session.get('login_time', 0) > SESSION_TIME):
         session.invalidate()
         return web.HTTPFound('/login')
-    resp = web.Response(text=render_template("dashboard.html", error=""), content_type='text/html')
+        
+    role = session.get('user_role', 'customer')
+    
+    # 🚧 1. Owner Security Lock
+    if role == 'owner':
+        lock_html = """
+        <body style="background:#e5e7eb; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;">
+            <div style="background:white; padding:40px; border-radius:12px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.1); max-width:400px;">
+                <h1 style="font-size:50px; margin:0;">🚧</h1>
+                <h2 style="color:#374151;">Owner Panel Locked</h2>
+                <p style="color:#6b7280; margin-bottom:25px;">The Super-Admin system is currently undergoing complex security upgrades. Access is temporarily disabled.</p>
+                <form action="/logout" method="post"><button style="background:#ef4444; color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:bold;">Log Out</button></form>
+            </div>
+        </body>
+        """
+        return web.Response(text=lock_html, content_type='text/html')
+        
+    # 👮 2. Admin Dashboard (Purana kaam wala page)
+    elif role == 'admin':
+        resp = web.Response(text=render_template("admin_dashboard.html", error=""), content_type='text/html')
+        
+    # 🛍️ 3. Customer Dashboard (Naya Advertisement/Video page)
+    else: 
+        resp = web.Response(text=render_template("customer_dashboard.html", error=""), content_type='text/html')
+        
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
 async def action_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.json_response({"success": False, "message": "Unauthorized"})
+
+    # 👇 NAYA SECURITY CHECK: Sirf admin action le sakta hai
+    if session.get('user_role') != 'admin':
+        return web.json_response({"success": False, "message": "Access Denied: Admin privileges required."})
 
     data = await request.json()
     action, target_id = data.get('action'), data.get('id')
@@ -202,6 +230,10 @@ async def action_handler(request):
 async def api_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
+
+    # 👇 NAYA SECURITY CHECK: API data sirf admin dekh sakta hai
+    if session.get('user_role') != 'admin':
+        return web.Response(text="Access Denied: Admin Panel Only", status=403)
 
     page = request.match_info['page']
     db = SessionLocal()
