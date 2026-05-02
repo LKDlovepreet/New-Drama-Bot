@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - RAMGARHIA Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
+    <!-- Base CSS (Common) -->
+    <link rel="stylesheet" href="/static/style.css?v=9.0">
+    <!-- Admin Specific CSS -->
+    <link rel="stylesheet" href="/static/admin/admin_style.css?v=1.0">
+    <script>
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+        
+        async function loadData(page) {
+            document.getElementById('main-content').innerHTML = '<div class="loading-text">Loading Admin Data...</div>';
+            document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
+            if(document.getElementById('btn-'+page)) document.getElementById('btn-'+page).classList.add('active');
+            
+            try {
+                const res = await fetch('/api/' + page);
+                document.getElementById('main-content').innerHTML = await res.text();
+            } catch(e) { 
+                document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>'; 
+            }
+        }
+
+        async function performAction(action, id) {
+            if(!confirm("Are you sure you want to perform this action?")) return;
+            try {
+                const res = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: action, id: id})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert("Action successful!");
+                    loadData(document.querySelector('.sidebar-nav button.active').id.replace('btn-', ''));
+                } else {
+                    alert("Failed: " + data.message);
+                }
+            } catch(e) { alert("Network error!"); }
+        }
+    </script>
+</head>
+<body onload="loadData('status')">
+    <header class="top-navbar admin-navbar">
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+            <h2 class="admin-logo">🛡️ Admin Control</h2>
+        </div>
+        <form action="/logout" method="post" style="margin: 0;">
+            <button class="logout-btn" type="submit">🚪 Logout</button>
+        </form>
+    </header>
+
+    <div class="dashboard-container">
+        <aside class="sidebar admin-sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <button id="btn-status" onclick="loadData('status')">📊 System Status</button>
+                <button id="btn-users" onclick="loadData('users')">👥 Manage Users</button>
+                <button id="btn-files" onclick="loadData('files')">📁 File Records</button>
+                <button id="btn-admins" onclick="loadData('admins')">👮 Admin Directory</button>
+            </nav>
+        </aside>
+        <main class="content" id="main-content"></main>
+    </div>
+</body>
+  </html>
