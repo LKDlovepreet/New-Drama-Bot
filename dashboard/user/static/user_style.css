@@ -1,0 +1,23 @@
+/* User Specific Styles */
+.user-navbar { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: none; }
+.user-logo { color: var(--bg-header); margin-left: 15px; font-size: 22px; font-weight: 600; }
+
+/* Clickable Profile Picture in Navbar */
+.profile-icon-wrapper { cursor: pointer; padding-right: 20px; transition: 0.3s; }
+.profile-icon-wrapper:hover { transform: scale(1.05); }
+.user-profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--bg-header); }
+
+/* User Sidebar */
+.user-sidebar { background: #f8fafc; border-right: 1px solid #e2e8f0; }
+.user-sidebar button { color: #475569; border-radius: 8px; margin-bottom: 8px; font-weight: 500; transition: 0.2s; }
+.user-sidebar button:hover { background: #e2e8f0; color: #0f172a; }
+.user-sidebar button.active { background: var(--bg-header); color: white; box-shadow: 0 4px 10px rgba(17, 24, 39, 0.2); }
+
+.user-logout { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px dashed var(--danger); }
+.user-logout:hover { background: var(--danger); color: white; }
+
+.user-loading { text-align: center; margin-top: 50px; font-size: 18px; color: var(--text-muted); font-weight: 500; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+/* Profile Form Overrides */
+input[disabled] { background-color: #f3f4f6 !important; cursor: not-allowed; }
