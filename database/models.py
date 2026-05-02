@@ -90,3 +90,16 @@ class CommunityMessage(Base):
     sender_role = Column(String) # Admin hai ya Customer
     message_text = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+# Is class ko models.py me sabse neeche add karein
+class WebsiteUser(Base):
+    __tablename__ = "website_users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    telegram_id = Column(BigInteger, unique=True, index=True)
+    web_password = Column(String(255))
+    role = Column(String, default="customer")
+    full_name = Column(String)
+    dob = Column(String)
+    email = Column(String)
+    mobile_number = Column(String)
+    profile_pic_url = Column(String)
