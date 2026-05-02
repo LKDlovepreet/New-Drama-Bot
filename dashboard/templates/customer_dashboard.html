@@ -4,64 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Portal - RAMGARHIA Services</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css?v=8.0">
+    <script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+    async function loadData(page) {
+        document.getElementById('main-content').innerHTML = '<div style="padding: 20px; color: var(--text-muted);">Loading Data...</div>';
+        document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
+        if(document.getElementById('btn-'+page)) document.getElementById('btn-'+page).classList.add('active');
+        if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('active');
+
+        try {
+            const res = await fetch('/api/' + page);
+            const html = await res.text();
+            document.getElementById('main-content').innerHTML = html;
+        } catch(e) { document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>'; }
+    }
+    </script>
 </head>
-<body style="background: var(--bg-main); overflow-y: auto; display: block;">
-    <header class="top-navbar" style="position: sticky; top: 0;">
-        <div class="logo" style="text-align: left;">
-            <h2 style="font-family: 'Newsreader', serif; margin-left: 20px;">RAMGARHIA Services</h2>
+<body onload="loadData('store')">
+    <header class="top-navbar">
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
         </div>
-        <div class="profile-section" style="width: auto; padding-right: 20px;">
-            <form action="/logout" method="post" style="margin: 0;">
-                <button type="submit" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 600;">🚪 Logout</button>
-            </form>
+        <div class="logo">
+            <h2 style="font-family: 'Newsreader', serif; margin: 0; color: var(--text-light);">RAMGARHIA Services</h2>
+        </div>
+        <div class="profile-section" style="cursor: pointer;" onclick="loadData('profile')" title="My Profile">
+            <img src="{profile_pic}" alt="Profile" class="profile-pic" onerror="this.src='https://ui-avatars.com/api/?name=Customer&background=555&color=fff'">
         </div>
     </header>
 
-    <div class="content" style="padding: 40px 20px; max-width: 1200px; margin: 0 auto;">
-        <div class="welcome-msg" style="text-align: center; margin-bottom: 50px;">
-            <h1 style="font-size: 32px; color: var(--bg-header); margin-bottom: 10px;">Welcome to your Dashboard! 🎉</h1>
-            <p style="font-size: 16px; color: var(--text-muted);">Explore our premium bots, watch tutorials, and supercharge your Telegram communities.</p>
-        </div>
-        
-        <div class="bot-cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px;">
-            
-            <div class="bot-card" style="cursor: default; transform: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                <div class="card-header">
-                    <h3>🔗 Smart Link Manager Bot</h3>
-                    <span style="background: var(--success); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: 600;">Premium Service</span>
-                </div>
-                <div class="card-body">
-                    <p style="margin-bottom: 20px;">Store files securely, generate auto-expiring deep links, and enforce force-subscribe channels effortlessly before users can access your content.</p>
-                    
-                    <div style="background: #111; height: 200px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 20px; position: relative;">
-                        <span style="font-size: 40px;">▶️</span>
-                        <p style="position: absolute; bottom: 10px; font-size: 12px; color: #aaa;">Watch Demo Tutorial</p>
-                    </div>
-                    
-                    <button style="width: 100%; padding: 14px; background: var(--bg-header); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s;">🛍️ Buy & Connect Bot</button>
-                </div>
+    <div class="dashboard-container">
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <button id="btn-store" onclick="loadData('store')">🛍️ Bot Store</button>
+                <button id="btn-profile" onclick="loadData('profile')">👤 My Profile</button>
+            </nav>
+            <div class="sidebar-footer">
+                <form action="/logout" method="post"><button class="logout-btn" type="submit">🚪 Logout</button></form>
             </div>
-
-            <div class="bot-card" style="cursor: default; transform: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                <div class="card-header">
-                    <h3>🛡️ Group Guard AI Bot</h3>
-                    <span style="background: #3b82f6; padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: 600;">Trending Now</span>
-                </div>
-                <div class="card-body">
-                    <p style="margin-bottom: 20px;">Advanced anti-spam, intelligent keyword auto-replies, and a 3-strike automated ban system to keep your communities clean and safe.</p>
-                    
-                    <div style="background: #111; height: 200px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 20px; position: relative;">
-                        <span style="font-size: 40px;">▶️</span>
-                        <p style="position: absolute; bottom: 10px; font-size: 12px; color: #aaa;">See it in Action</p>
-                    </div>
-                    
-                    <button style="width: 100%; padding: 14px; background: var(--bg-header); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s;">🛍️ Try for Free</button>
-                </div>
-            </div>
-
-        </div>
+        </aside>
+        <main class="content" id="main-content" style="padding: 30px;"></main>
     </div>
 </body>
 </html>
