@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Portal - RAMGARHIA Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet">
+    <!-- Base CSS (Common) -->
+    <link rel="stylesheet" href="/static/style.css?v=9.0">
+    <!-- User Specific CSS -->
+    <link rel="stylesheet" href="/static/user/user_style.css?v=1.0">
+    <script>
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+        
+        async function loadData(page) {
+            document.getElementById('main-content').innerHTML = '<div class="user-loading">Loading your workspace...</div>';
+            document.querySelectorAll('.sidebar-nav button').forEach(b => b.classList.remove('active'));
+            if(document.getElementById('btn-'+page)) document.getElementById('btn-'+page).classList.add('active');
+            if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('active');
+
+            try {
+                const res = await fetch('/api/' + page);
+                document.getElementById('main-content').innerHTML = await res.text();
+            } catch(e) { 
+                document.getElementById('main-content').innerHTML = '<p class="error-msg">Failed to load data.</p>'; 
+            }
+        }
+    </script>
+</head>
+<body onload="loadData('store')">
+    <header class="top-navbar user-navbar">
+        <div class="header-left">
+            <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+            <h2 class="user-logo" style="font-family: 'Newsreader', serif;">RAMGARHIA Services</h2>
+        </div>
+        
+        <!-- Profile Picture Click to open Profile Page -->
+        <div class="profile-icon-wrapper" onclick="loadData('profile')" title="Edit Profile">
+            <img src="{profile_pic}" alt="Profile" class="user-profile-pic" onerror="this.src='https://ui-avatars.com/api/?name=Customer&background=555&color=fff'">
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <aside class="sidebar user-sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <button id="btn-store" onclick="loadData('store')">🛍️ Premium Bot Store</button>
+                <button id="btn-profile" onclick="loadData('profile')">👤 Edit My Profile</button>
+            </nav>
+            <div class="sidebar-footer">
+                <form action="/logout" method="post">
+                    <button class="logout-btn user-logout" type="submit">🚪 Secure Logout</button>
+                </form>
+            </div>
+        </aside>
+        <main class="content user-content" id="main-content"></main>
+    </div>
+</body>
+</html>
