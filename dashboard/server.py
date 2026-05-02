@@ -11,7 +11,6 @@ from aiohttp_session.cookie_storage import EncryptedCookieStorage
 from config.settings import DASHBOARD_PASSWORD, SESSION_TIME
 from database.db import SessionLocal
 from sqlalchemy import String
-# Yahan WebsiteUser ko import kiya gaya hai
 from database.models import BotUser, FileRecord, Channel, WebsiteUser
 from dashboard.otp_service import send_otp_to_owner, send_otp_to_customer, verify_otp
 
@@ -41,18 +40,13 @@ async def login_post(request):
 
     db = SessionLocal()
     try:
-        # Owner check
         if login_id == "owner" and password == DASHBOARD_PASSWORD:
             await send_otp_to_owner()
             session = await get_session(request)
-            session['pre_auth'] = True
-            session['user_role'] = 'owner'
+            session['pre_auth'], session['user_role'] = True, 'owner'
             return web.HTTPFound('/verify')
 
-        # Ab sirf WebsiteUser table me check karega
-        user = db.query(WebsiteUser).filter(
-            WebsiteUser.telegram_id.cast(String) == login_id
-        ).filter(WebsiteUser.web_password == hashed_pw).first()
+        user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id.cast(String) == login_id).filter(WebsiteUser.web_password == hashed_pw).first()
 
         if user:
             success, error_msg = await send_otp_to_customer(user.telegram_id)
@@ -60,9 +54,7 @@ async def login_post(request):
                 return web.Response(text=render_template("login.html", error=f"❌ Error: {error_msg} (Start the Bot first!)"), content_type='text/html')
 
             session = await get_session(request)
-            session['pre_auth'] = True
-            session['user_role'] = user.role
-            session['target_user_id'] = user.telegram_id
+            session['pre_auth'], session['user_role'], session['target_user_id'] = True, user.role, user.telegram_id
             return web.HTTPFound('/verify')
         else:
             return web.Response(text=render_template("login.html", error="❌ Invalid Credentials!"), content_type='text/html')
@@ -76,17 +68,11 @@ async def signup_page(request):
 async def signup_post(request):
     try:
         data = await request.post()
-
-        full_name = data.get('full_name')
-        dob = data.get('dob')
-        telegram_id = data.get('telegram_id')
-        passkey = data.get('passkey')
-        email = data.get('email', '')
-        mobile = data.get('mobile_number', '')
+        full_name, dob, telegram_id = data.get('full_name'), data.get('dob'), data.get('telegram_id')
+        passkey, email, mobile = data.get('passkey'), data.get('email', ''), data.get('mobile_number', '')
 
         db = SessionLocal()
-        existing_user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == int(telegram_id)).first()
-        if existing_user:
+        if db.query(WebsiteUser).filter(WebsiteUser.telegram_id == int(telegram_id)).first():
             db.close()
             return web.json_response({"success": False, "message": "This Telegram ID is already registered."})
 
@@ -99,37 +85,24 @@ async def signup_post(request):
                 form_data = aiohttp.FormData()
                 form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
                 form_data.add_field('upload_preset', 'Profile_pictures')
-
                 async with aiohttp.ClientSession() as http_session:
                     async with http_session.post(url, data=form_data) as resp:
                         res_json = await resp.json()
-                        if 'secure_url' in res_json:
-                            profile_pic_url = res_json['secure_url']
-            except Exception as e:
-                print("Cloudinary Upload Error:", str(e))
+                        if 'secure_url' in res_json: profile_pic_url = res_json['secure_url']
+            except Exception: pass
 
         hashed_password = hashlib.sha256(passkey.encode()).hexdigest()
         new_user = WebsiteUser(
-            telegram_id=int(telegram_id),
-            web_password=hashed_password, 
-            role='customer',
-            full_name=full_name, 
-            dob=dob, 
-            email=email, 
-            mobile_number=mobile, 
-            profile_pic_url=profile_pic_url
+            telegram_id=int(telegram_id), web_password=hashed_password, role='customer',
+            full_name=full_name, dob=dob, email=email, mobile_number=mobile, profile_pic_url=profile_pic_url
         )
         db.add(new_user)
         db.commit()
         db.close()
 
         session = await get_session(request)
-        session['pre_auth'] = True
-        session['user_role'] = 'customer'
-        session['target_user_id'] = int(telegram_id)
-
+        session['pre_auth'], session['user_role'], session['target_user_id'] = True, 'customer', int(telegram_id)
         return web.json_response({"success": True, "redirect": "/verify"})
-
     except ValueError:
         return web.json_response({"success": False, "message": "Telegram ID must be numbers only!"})
     except Exception as e:
@@ -153,8 +126,7 @@ async def verify_post(request):
     success, msg = verify_otp(target_id, otp)
 
     if success:
-        session['authenticated'] = True
-        session['login_time'] = time.time()
+        session['authenticated'], session['login_time'] = True, time.time()
         del session['pre_auth']
         return web.HTTPFound('/dashboard')
     else:
@@ -170,94 +142,207 @@ async def dashboard_page(request):
     if not session.get('authenticated') or (time.time() - session.get('login_time', 0) > SESSION_TIME):
         session.invalidate()
         return web.HTTPFound('/login')
-        
+
     role = session.get('user_role', 'customer')
     
-    # 🚧 1. Owner Security Lock
     if role == 'owner':
-        lock_html = """
-        <body style="background:#e5e7eb; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;">
-            <div style="background:white; padding:40px; border-radius:12px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.1); max-width:400px;">
-                <h1 style="font-size:50px; margin:0;">🚧</h1>
-                <h2 style="color:#374151;">Owner Panel Locked</h2>
-                <p style="color:#6b7280; margin-bottom:25px;">The Super-Admin system is currently undergoing complex security upgrades. Access is temporarily disabled.</p>
-                <form action="/logout" method="post"><button style="background:#ef4444; color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:bold;">Log Out</button></form>
-            </div>
-        </body>
-        """
+        lock_html = """<body style="background:#e5e7eb; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;"><div style="background:white; padding:40px; border-radius:12px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.1); max-width:400px;"><h1 style="font-size:50px; margin:0;">🚧</h1><h2 style="color:#374151;">Owner Panel Locked</h2><p style="color:#6b7280; margin-bottom:25px;">The Super-Admin system is currently undergoing complex security upgrades. Access is temporarily disabled.</p><form action="/logout" method="post"><button style="background:#ef4444; color:white; border:none; padding:12px 25px; border-radius:8px; cursor:pointer; font-weight:bold;">Log Out</button></form></div></body>"""
         return web.Response(text=lock_html, content_type='text/html')
         
-    # 👮 2. Admin Dashboard (Purana kaam wala page)
     elif role == 'admin':
         resp = web.Response(text=render_template("admin_dashboard.html", error=""), content_type='text/html')
         
-    # 🛍️ 3. Customer Dashboard (Naya Advertisement/Video page)
     else: 
-        resp = web.Response(text=render_template("customer_dashboard.html", error=""), content_type='text/html')
+        # Customer ke liye profile picture nikalna
+        db = SessionLocal()
+        user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == session.get('target_user_id')).first()
+        pic_url = user.profile_pic_url if user else "https://ui-avatars.com/api/?name=User"
+        db.close()
+        resp = web.Response(text=render_template("customer_dashboard.html", profile_pic=pic_url), content_type='text/html')
         
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
 async def action_handler(request):
     session = await get_session(request)
-    if not session.get('authenticated'): return web.json_response({"success": False, "message": "Unauthorized"})
-
-    # 👇 NAYA SECURITY CHECK: Sirf admin action le sakta hai
-    if session.get('user_role') != 'admin':
-        return web.json_response({"success": False, "message": "Access Denied: Admin privileges required."})
+    if not session.get('authenticated') or session.get('user_role') != 'admin':
+        return web.json_response({"success": False, "message": "Unauthorized"})
 
     data = await request.json()
     action, target_id = data.get('action'), data.get('id')
     db = SessionLocal()
     try:
         if action == 'make_admin':
-            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
-            if user: user.is_admin, user.role = True, 'admin'
+            u = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if u: u.is_admin, u.role = True, 'admin'
         elif action == 'remove_admin':
-            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
-            if user: user.is_admin, user.role = False, 'user'
+            u = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if u: u.is_admin, u.role = False, 'user'
         elif action == 'ban_user':
-            user = db.query(BotUser).filter(BotUser.user_id == target_id).first()
-            if user: user.is_global_banned = True
+            u = db.query(BotUser).filter(BotUser.user_id == target_id).first()
+            if u: u.is_global_banned = True
         elif action == 'delete_file':
-            file = db.query(FileRecord).filter(FileRecord.id == target_id).first()
-            if file: db.delete(file)
+            f = db.query(FileRecord).filter(FileRecord.id == target_id).first()
+            if f: db.delete(f)
         db.commit()
         return web.json_response({"success": True})
     except Exception as e: return web.json_response({"success": False, "message": str(e)})
     finally: db.close()
 
+# 👇 NAYA HANDLER: Profile Edit karne ke liye
+async def update_profile_handler(request):
+    session = await get_session(request)
+    if not session.get('authenticated') or session.get('user_role') != 'customer':
+        return web.json_response({"success": False, "message": "Unauthorized"})
+
+    data = await request.post()
+    target_id = session.get('target_user_id')
+    
+    db = SessionLocal()
+    try:
+        user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == target_id).first()
+        if not user:
+            return web.json_response({"success": False, "message": "User not found!"})
+
+        user.full_name = data.get('full_name')
+        user.dob = data.get('dob')
+        user.email = data.get('email')
+        user.mobile_number = data.get('mobile_number')
+
+        profile_pic_file = data.get('profile_pic')
+        if profile_pic_file and hasattr(profile_pic_file, 'filename') and profile_pic_file.filename:
+            try:
+                url = "https://api.cloudinary.com/v1_1/dordvtopl/image/upload"
+                form_data = aiohttp.FormData()
+                form_data.add_field('file', profile_pic_file.file.read(), filename=profile_pic_file.filename, content_type=profile_pic_file.content_type)
+                form_data.add_field('upload_preset', 'Profile_pictures')
+
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, data=form_data) as resp:
+                        res_json = await resp.json()
+                        if 'secure_url' in res_json:
+                            user.profile_pic_url = res_json['secure_url']
+            except Exception: pass
+        
+        db.commit()
+        return web.json_response({"success": True})
+    except Exception as e:
+        db.rollback()
+        return web.json_response({"success": False, "message": str(e)})
+    finally:
+        db.close()
+
 async def api_handler(request):
     session = await get_session(request)
     if not session.get('authenticated'): return web.Response(text="Unauthorized", status=401)
 
-    # 👇 NAYA SECURITY CHECK: API data sirf admin dekh sakta hai
-    if session.get('user_role') != 'admin':
-        return web.Response(text="Access Denied: Admin Panel Only", status=403)
-
+    role = session.get('user_role')
     page = request.match_info['page']
     db = SessionLocal()
     html = ""
     try:
-        if page == 'status':
-            u, f, c = db.query(BotUser).count(), db.query(FileRecord).count(), db.query(Channel).count()
-            html = f"""<div class="welcome-msg"><h1>Welcome back, Boss! 👋</h1><p>System is running smoothly.</p></div>
-            <div class="bot-cards-grid">
-                <a href="#bot1" class="bot-card"><div class="card-header"><h3>Link Manager Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Handling Deep Linking & File Storage.</p><div class="bot-stats">📁 Indexed Files: {f}</div></div></a>
-                <a href="#bot2" class="bot-card"><div class="card-header"><h3>Group Guard Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Managing Security & Auto-replies.</p><div class="bot-stats">👥 Active Users: {u}</div></div></a>
-            </div>"""
-        elif page == 'users':
-            users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d')}</td><td><button class='action-btn' style='background:var(--success);' onclick='performAction(\"make_admin\", {u.user_id})'>Make Admin</button><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"ban_user\", {u.user_id})'>Ban</button></td></tr>" for u in users])
-            html = f"<h1>Manage Users</h1><table><tr><th>User ID</th><th>Joined Date</th><th>Actions</th></tr>{rows}</table>"
-        elif page == 'files':
-            files = db.query(FileRecord).order_by(FileRecord.id.desc()).limit(20).all()
-            rows = "".join([f"<tr><td>{f.file_name}</td><td>{f.file_type}</td><td><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"delete_file\", {f.id})'>Delete</button></td></tr>" for f in files])
-            html = f"<h1>Manage Files</h1><table><tr><th>File Name</th><th>Type</th><th>Actions</th></tr>{rows}</table>"
-        elif page == 'admins':
-            admins = db.query(BotUser).filter(BotUser.is_admin == True).all()
-            rows = "".join([f"<tr><td><code>{a.user_id}</code></td><td>Admin</td><td><button class='action-btn' style='background:var(--accent);' onclick='performAction(\"remove_admin\", {a.user_id})'>Remove</button></td></tr>" for a in admins])
-            html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th><th>Actions</th></tr>{rows}</table>"
+        # 👮 ADMIN PAGES
+        if page in ['status', 'users', 'files', 'admins']:
+            if role != 'admin': return web.Response(text="Access Denied: Admin Only", status=403)
+            if page == 'status':
+                u, f, c = db.query(BotUser).count(), db.query(FileRecord).count(), db.query(Channel).count()
+                html = f"""<div class="welcome-msg"><h1>Welcome back, Boss! 👋</h1><p>System is running smoothly.</p></div>
+                <div class="bot-cards-grid">
+                    <a href="#bot1" class="bot-card"><div class="card-header"><h3>Link Manager Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Handling Deep Linking & File Storage.</p><div class="bot-stats">📁 Indexed Files: {f}</div></div></a>
+                    <a href="#bot2" class="bot-card"><div class="card-header"><h3>Group Guard Bot</h3><span class="live-dot"></span></div><div class="card-body"><p>Managing Security & Auto-replies.</p><div class="bot-stats">👥 Active Users: {u}</div></div></a>
+                </div>"""
+            elif page == 'users':
+                users = db.query(BotUser).order_by(BotUser.id.desc()).limit(20).all()
+                rows = "".join([f"<tr><td><code>{u.user_id}</code></td><td>{u.joined_date.strftime('%Y-%m-%d')}</td><td><button class='action-btn' style='background:var(--success);' onclick='performAction(\"make_admin\", {u.user_id})'>Make Admin</button><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"ban_user\", {u.user_id})'>Ban</button></td></tr>" for u in users])
+                html = f"<h1>Manage Users</h1><table><tr><th>User ID</th><th>Joined Date</th><th>Actions</th></tr>{rows}</table>"
+            elif page == 'files':
+                files = db.query(FileRecord).order_by(FileRecord.id.desc()).limit(20).all()
+                rows = "".join([f"<tr><td>{f.file_name}</td><td>{f.file_type}</td><td><button class='action-btn' style='background:var(--danger);' onclick='performAction(\"delete_file\", {f.id})'>Delete</button></td></tr>" for f in files])
+                html = f"<h1>Manage Files</h1><table><tr><th>File Name</th><th>Type</th><th>Actions</th></tr>{rows}</table>"
+            elif page == 'admins':
+                admins = db.query(BotUser).filter(BotUser.is_admin == True).all()
+                rows = "".join([f"<tr><td><code>{a.user_id}</code></td><td>Admin</td><td><button class='action-btn' style='background:var(--accent);' onclick='performAction(\"remove_admin\", {a.user_id})'>Remove</button></td></tr>" for a in admins])
+                html = f"<h1>Admin Directory</h1><table><tr><th>Admin ID</th><th>Role Level</th><th>Actions</th></tr>{rows}</table>"
+                
+        # 🛍️ CUSTOMER PAGES
+        elif page == 'store':
+            if role != 'customer': return web.Response(text="Access Denied", status=403)
+            html = """
+            <div class="welcome-msg" style="text-align: center; margin-bottom: 50px;">
+                <h1 style="font-size: 32px; color: var(--bg-header); margin-bottom: 10px;">Welcome to your Dashboard! 🎉</h1>
+                <p style="font-size: 16px; color: var(--text-muted);">Explore our premium bots, watch tutorials, and supercharge your Telegram communities.</p>
+            </div>
+            <div class="bot-cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px;">
+                <div class="bot-card" style="cursor: default; transform: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <div class="card-header">
+                        <h3>🔗 Smart Link Manager Bot</h3>
+                        <span style="background: var(--success); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: white; font-weight: 600;">Premium Service</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 20px;">Store files securely, generate auto-expiring deep links, and enforce force-subscribe channels effortlessly.</p>
+                        <div style="background: #111; height: 200px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; margin-bottom: 20px; position: relative;">
+                            <span style="font-size: 40px;">▶️</span><p style="position: absolute; bottom: 10px; font-size: 12px; color: #aaa;">Watch Demo Tutorial</p>
+                        </div>
+                        <button style="width: 100%; padding: 14px; background: var(--bg-header); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">🛍️ Buy & Connect Bot</button>
+                    </div>
+                </div>
+            </div>
+            """
+        elif page == 'profile':
+            if role != 'customer': return web.Response(text="Access Denied", status=403)
+            user = db.query(WebsiteUser).filter(WebsiteUser.telegram_id == session.get('target_user_id')).first()
+            # Yahan edit form banaya gaya hai
+            html = f"""
+            <div style="max-width: 600px; margin: 0 auto; background: var(--bg-panel); padding: 30px; border-radius: 12px; border: 1px solid var(--border);">
+                <h2 style="color: var(--bg-header); margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">👤 My Profile</h2>
+                <form id="profile-update-form" enctype="multipart/form-data">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <img src="{user.profile_pic_url}" id="preview-pic" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--success); margin-bottom: 15px;">
+                        <label style="border: 2px dashed var(--border); padding: 15px; text-align: center; border-radius: 8px; background: var(--bg-main); cursor: pointer; display: block;">
+                            <input type="file" name="profile_pic" accept="image/*" style="display: none;" onchange="document.getElementById('preview-pic').src = window.URL.createObjectURL(this.files[0])">
+                            🖼️ Tap to Change Picture
+                        </label>
+                    </div>
+                    <div class="input-group" style="text-align: left;">
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px; font-weight: 500;">Full Name</label>
+                        <input type="text" name="full_name" value="{user.full_name}" required style="width: 100%; padding: 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; outline: none;">
+                        
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px; font-weight: 500;">Date of Birth</label>
+                        <input type="date" name="dob" value="{user.dob}" required style="width: 100%; padding: 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; outline: none;">
+                        
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px; font-weight: 500;">Email Address</label>
+                        <input type="email" name="email" value="{user.email}" style="width: 100%; padding: 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; outline: none;">
+                        
+                        <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px; font-weight: 500;">Mobile Number</label>
+                        <input type="tel" name="mobile_number" value="{user.mobile_number}" style="width: 100%; padding: 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; outline: none;">
+                        
+                        <label style="font-size: 13px; color: var(--danger); display: block; margin-bottom: 5px; font-weight: 500;">Telegram ID (Cannot be changed)</label>
+                        <input type="text" value="{user.telegram_id}" disabled style="width: 100%; padding: 12px; background: #e5e7eb; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 25px; cursor: not-allowed; color: var(--text-muted);">
+                    </div>
+                    <button type="submit" id="update-btn" style="width: 100%; padding: 14px; background: var(--success); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">Save Changes 💾</button>
+                </form>
+            </div>
+            <script>
+                document.getElementById("profile-update-form").addEventListener("submit", async function(e) {{
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const btn = document.getElementById('update-btn');
+                    btn.innerText = "Saving Details..."; btn.disabled = true;
+                    try {{
+                        const res = await fetch('/api/update_profile', {{ method: 'POST', body: formData }});
+                        const data = await res.json();
+                        if(data.success) {{
+                            alert("Profile Updated Successfully!");
+                            // Page refresh taaki top navbar ki DP bhi update ho jaye
+                            window.location.reload(); 
+                        }} else {{
+                            alert("Error: " + data.message);
+                        }}
+                    }} catch(err) {{ alert("Network Error!"); }}
+                    btn.innerText = "Save Changes 💾"; btn.disabled = false;
+                }});
+            </script>
+            """
     finally: db.close()
     return web.Response(text=html, content_type='text/html')
 
@@ -275,6 +360,8 @@ async def start_dashboard_server():
     app.router.add_post('/logout', logout)
     app.router.add_get('/dashboard', dashboard_page)
     app.router.add_post('/api/action', action_handler)
+    # Naya route for profile update
+    app.router.add_post('/api/update_profile', update_profile_handler)
     app.router.add_get('/api/{page}', api_handler)
     app.router.add_get('/signup', signup_page)
     app.router.add_post('/signup', signup_post)
